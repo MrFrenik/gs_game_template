@@ -3,15 +3,12 @@
 
 /* 
  *  Main application interface
- */ 
+ */
 
-/*
-typedef struct renderable_t : public object_t
+_introspect(base = object_t)
+typedef struct renderable_t
 {
-	OBJ_DECL(renderable_t);
-
-	// Methods
-	void set_material_uniform(const char* name, void* data);
+	BASE(object_t);
 
 	// Fields
 	gs_gfxt_renderable_t data;
@@ -20,24 +17,20 @@ typedef struct renderable_t : public object_t
 
 } renderable_t;
 
+GS_API_DECL void renderable_set_material_uniform(renderable_t* rend, const char* name, void* data);
+
 // Need a way to add renderables to a scene
 typedef struct graphics_scene_t 
 {
-	OBJ_DECL(graphics_scene_t);
-
-	// Methods
-	// Need a way to sort renderables by material/pipeline
-	uint32_t add_renderable(const renderable_t& renderable) 
-	{
-		return renderables.insert(renderable);
-	}
+	BASE(object_t);
 
 	// Fields
-	slot_array_t<renderable_t> renderables;
+	gs_slot_array(renderable_t) renderables;
 
 } graphics_scene_t;
-*/
 
+// Need a way to sort renderables by material/pipeline
+GS_API_DECL uint32_t graphics_scene_add_renderable(graphics_scene_t* scene, renderable_t renderable); 
 // App struct declaration 
 typedef struct app_t
 {
@@ -48,9 +41,10 @@ typedef struct app_t
     gs_immediate_draw_t gsi; 
 	entity_manager_t entities;
 	asset_manager_t assets;
+	meta_t meta;
     gs_camera_t camera;
     entity_handle_t player; 
-	// graphics_scene_t graphics;
+	graphics_scene_t graphics;
 } app_t; 
 
 // Main application interface functions
@@ -58,6 +52,7 @@ GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv);
 GS_API_DECL void app_init();
 GS_API_DECL void app_update();
 GS_API_DECL void app_shutdown();
+GS_API_DECL void app_init_meta();
 
 #ifdef APP_IMPL 
 
@@ -69,17 +64,25 @@ GS_API_DECL void app_init()
     app->cb = gs_command_buffer_new();
     app->gsi = gs_immediate_draw_new();
 
-	// Initialize asset manager
+	// Initialize meta
+	// This will all be done internally by the reflection system.
+	app_init_meta();
+
+	// Initialize asset manager with root path for assets to be imported
     const char* assets_path = gs_platform_file_exists("./assets/test.txt") ? "./assets" : "../assets";
 	assets_init(&app->assets, assets_path);
 
-    // Add some assets to the database
-	// Get importer based on file extension
+    // Add some assets to the database (importer is based on file extension)
     assets_import(&app->assets, "textures/contra_player_sprite.png", NULL);  
+
+	// Get asset after import
+	texture_t* tex = assets_getp(&app->assets, texture_t, "textures.contra_player_sprite");
+	obj_dump(&app->meta, tex, gs_meta_class_get(&app->meta.registry, texture_t));
 
 	// Register all components	
 	entities_register_component(&app->entities, component_transform_t);
 	entities_register_component(&app->entities, component_physics_t);
+	entities_register_component(&app->entities, component_renderable_t);
 
 	gs_assert(gs_hash_table_exists(app->entities.components, obj_id(component_transform_t)));
 
@@ -158,6 +161,66 @@ GS_API_DECL void app_update()
 GS_API_DECL void app_shutdown()
 {
     app_t* app = gs_engine_user_data(app_t); 
+}
+
+GS_API_DECL void app_init_meta()
+{
+	app_t* app = gs_engine_user_data(app_t);
+
+	app->meta = meta_new();
+	meta_set_instance(&app->meta);
+
+	// This will be generated...somehow
+	// Register all necessary meta information (which includes reflection information)
+
+	// asset_t
+    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+        .properties = (gs_meta_property_t[]) {
+            gs_meta_property(asset_t, uint32_t, record_hndl, GS_META_PROPERTY_TYPE_INFO_U32)
+        },
+        .size = 1 * sizeof(gs_meta_property_t),
+		.name = gs_to_str(asset_t),
+		.base = gs_to_str(object_t)
+    }));
+
+	// gs_graphics_texture_desc_t
+    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+        .properties = (gs_meta_property_t[]) {
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, width, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, height, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, format, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, wrap_s, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, wrap_t, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, min_filter, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, mag_filter, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, mip_filter, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, num_mips, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, render_target, GS_META_PROPERTY_TYPE_INFO_U32)
+        },
+        .size = 10 * sizeof(gs_meta_property_t),
+		.name = gs_to_str(gs_graphics_texture_desc_t)
+    }));
+
+	// gs_asset_texture_t
+    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+        .properties = (gs_meta_property_t[]) {
+            gs_meta_property(gs_asset_texture_t, gs_graphics_texture_desc_t, desc, GS_META_PROPERTY_TYPE_INFO_OBJ),
+        },
+        .size = 1 * sizeof(gs_meta_property_t),
+		.name = gs_to_str(gs_asset_texture_t)
+    }));
+	
+	// texture_t
+    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+        .properties = (gs_meta_property_t[]) {
+            gs_meta_property(texture_t, gs_asset_texture_t, texture, GS_META_PROPERTY_TYPE_INFO_OBJ),
+        },
+        .size = 1 * sizeof(gs_meta_property_t),
+		.name = gs_to_str(texture_t),
+		.base = gs_to_str(asset_t)
+    }));
+
+	meta_register_vtable(&app->meta, texture_t, (&(vtable_t){0}));
 }
 		
 GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv)

@@ -55,7 +55,8 @@ typedef struct texture_t
 
 } texture_t;
 
-GS_API_DECL asset_t* assets_texture_t_load_resource_from_file(struct asset_storage_t* storage, const char* path, const struct asset_record_t* record, void* user_data);
+GS_API_DECL object_t* texture_t_new(size_t sz);
+GS_API_DECL bool assets_texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
 
 typedef struct font_t
 {
@@ -104,18 +105,28 @@ typedef struct asset_record_t
     char name[ASSET_STR_MAX];   // Qualified name for asset
 } asset_record_t;
 
-typedef struct asset_storage_t
+#define ASSET_IMPORTER_FILE_EXTENSIONS_MAX 10
+
+typedef struct asset_importer_desc_t
+{
+	bool (* load_resource_from_file)(const char* path, asset_t* out, void* user_data);
+	char* file_extensions[ASSET_IMPORTER_FILE_EXTENSIONS_MAX];
+	size_t file_extensions_size;
+} asset_importer_desc_t;
+
+typedef struct asset_importer_t
 {
 	BASE(object_t);
 
 	gs_slot_array(asset_record_t) records;		// Slot array of asset records
 	gs_hash_table(uint64_t, uint32_t) uuid2id;  // Lookup mapping from uuid to record slot id
 	gs_hash_table(uint64_t, uint32_t) name2id;  // Lookup mapping from name to record slot id
-	gs_slot_array(asset_t*) data;			    // Slot array of raw asset data (could try to come up with a way to not malloc this)
+	gs_slot_array(asset_t*) assets;			    // Slot array of raw asset data (could try to come up with a way to not malloc this)
 
-	asset_t* (* load_resource_from_file)(const char* path, const asset_record_t* record, void* user_data);
+	bool (* load_resource_from_file)(const char* path, asset_t* out, void* user_data);
 	uint64_t asset_cls_id;
-} asset_storage_t;
+	size_t cls_sz;
+} asset_importer_t;
 
 typedef struct asset_manager_t
 {
@@ -123,9 +134,9 @@ typedef struct asset_manager_t
 
 	// Fields
 	char root_path[ASSET_STR_MAX];	
-	gs_slot_array(asset_storage_t) assets;	 	  // Slot array of asset storage data
-	gs_hash_table(uint64_t, uint32_t) cid2assets; // Mapping from cls id to asset storage
-	gs_hash_table(uint64_t, uint32_t) fe2assets;  // Mapping from file extension to asset storage
+	gs_slot_array(asset_importer_t*) importers;	    // Slot array of asset data
+	gs_hash_table(uint64_t, uint32_t) cid2importer; // Mapping from cls id to importer data
+	gs_hash_table(uint64_t, uint32_t) fe2importer;  // Mapping from file extension to importer data
 
 } asset_manager_t;
 
@@ -136,6 +147,10 @@ GS_API_DECL gs_result assets_serialize_asset(const char* path, const asset_t* in
 GS_API_DECL gs_result assets_deserialize_asset(const char*path, asset_t* out);
 GS_API_DECL void* assets_get_data_internal(uint64_t cls_id);
 GS_API_DECL  const asset_t* _assets_get_w_name_internal(const asset_manager_t* am, uint64_t cid, const char* name);
+GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_t cid, size_t cls_sz, asset_importer_desc_t* desc);
+
+#define assets_register_importer(ASSETS, T, DESC)\
+	_assets_register_importer_internal(ASSETS, obj_id(T), sizeof(T), DESC);
 
 #define assets_getp(ASSETS, T, NAME)\
 	_assets_get_w_name_internal(ASSETS, gs_hash_str64(gs_to_str(T)), NAME)
@@ -162,32 +177,51 @@ GS_API_DECL const char* assets_get_internal_file_extension(const char* ext)
 
 GS_API_DECL const asset_t* _assets_get_w_name_internal(const asset_manager_t* am, uint64_t cid, const char* name)
 {
-	if (!gs_hash_table_exists(am->cid2assets, cid)) 
+	if (!gs_hash_table_exists(am->cid2importer, cid)) 
 	{
-		gs_println("error::asset_manager_t::getp:: asset type t doesn't exist: %s", name);
+		gs_timed_action(60, {
+			gs_println("error::asset_manager_t::getp:: asset type t doesn't exist: %s", name);
+		});
 		return NULL;
 	}
 
 	// Get the storage
-	uint32_t shndl = gs_hash_table_get(am->cid2assets, cid);
-	asset_storage_t* storage = gs_slot_array_getp(am->assets, shndl);
-	gs_assert(storage);
+	uint32_t shndl = gs_hash_table_get(am->cid2importer, cid);
+	asset_importer_t* importer = gs_slot_array_get(am->importers, shndl);
+	gs_assert(importer);
 
 	// Get the asset from storage by name
 	// TODO(john): Need to load asset if not loaded by default yet	
 	uint64_t hash = gs_hash_str64(name);	
-	if (!gs_hash_table_exists(storage->name2id, hash))
+	if (!gs_hash_table_exists(importer->name2id, hash))
 	{
-		gs_println("error::asset_manager_t::getp::asset doesn't exist: %s", name);
+		gs_timed_action(60, {
+			gs_println("error::asset_manager_t::getp::asset doesn't exist: %s", name);
+		});
 		return NULL;
 	}
 
-	uint32_t rhndl = gs_hash_table_get(storage->name2id, hash);
-	const asset_record_t* record = gs_slot_array_getp(storage->records, rhndl);
+	uint32_t rhndl = gs_hash_table_get(importer->name2id, hash);
+	const asset_record_t* record = gs_slot_array_getp(importer->records, rhndl);
 	gs_assert(record);
 
-	const asset_t* asset = gs_slot_array_get(storage->data, record->hndl);
+	const asset_t* asset = gs_slot_array_get(importer->assets, record->hndl);
 	return asset;
+}
+
+GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_t cid, size_t cls_sz, asset_importer_desc_t* desc)
+{
+	asset_importer_t* importer = gs_malloc_init(asset_importer_t);	
+	importer->load_resource_from_file = desc->load_resource_from_file;
+	importer->asset_cls_id = cid;
+	importer->cls_sz = cls_sz;
+	uint32_t hndl = gs_slot_array_insert(am->importers, importer);
+	gs_hash_table_insert(am->cid2importer, cid, hndl);
+	uint32_t ct = desc->file_extensions_size ? desc->file_extensions_size / sizeof(char*) : 0;
+	for (uint32_t i = 0; i < ct; ++i)
+	{
+		gs_hash_table_insert(am->fe2importer, gs_hash_str64(desc->file_extensions[i]), hndl);
+	}
 }
 
 GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data)	
@@ -199,17 +233,17 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 	gs_transient_buffer(FILE_EXT, 10);
 	gs_platform_file_extension(FILE_EXT, 10, path);
 
-	if (!gs_hash_table_exists(am->fe2assets, gs_hash_str64(FILE_EXT)))
+	if (!gs_hash_table_exists(am->fe2importer, gs_hash_str64(FILE_EXT)))
 	{
 		return;
 	}
 
 	// Get asset storage
-	uint32_t hndl = gs_hash_table_get(am->fe2assets, gs_hash_str64(FILE_EXT));
-	asset_storage_t* storage = gs_slot_array_getp(am->assets, hndl);
+	uint32_t hndl = gs_hash_table_get(am->fe2importer, gs_hash_str64(FILE_EXT));
+	asset_importer_t* importer = gs_slot_array_get(am->importers, hndl);
 
 	// Get class id from storage
-	uint64_t id = storage->asset_cls_id;
+	uint64_t id = importer->asset_cls_id;
 
 	// Get absolute path to asset
 	gs_snprintfc(PATH, ASSET_STR_MAX, "%s/%s", am->root_path, path);
@@ -233,15 +267,29 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
        // Generate uuid for asset
 	record.uuid = gs_platform_uuid_generate(); 
 
+	// Need to construct asset type here using vtable
+	vtable_t* vt = obj_vtable_w_id(id); 
+	asset_t* asset = (asset_t*)vt->malloc(importer->cls_sz);
+	gs_assert(asset);
+
 	// Construct raw asset (this will also place into storage and give asset the record's handle)
-	asset_t* asset = storage->load_resource_from_file(storage, PATH, &record, user_data); 
-	if (asset)
+	bool loaded = importer->load_resource_from_file(PATH, asset, user_data); 
+	if (loaded)
 	{
+		// Insert into data array
+		uint32_t hndl = gs_slot_array_insert(importer->assets, asset);
+
+		// Set up tables
+		gs_transient_buffer(UUID_BUF, 34);
+		gs_platform_uuid_to_string(UUID_BUF, &record.uuid);
+		gs_hash_table_insert(importer->uuid2id, gs_hash_str64(UUID_BUF), hndl);
+		gs_hash_table_insert(importer->name2id, gs_hash_str64(record.name), hndl); 
+
 		// Serialize asset to disk
 		// serialize_asset(record.path, asset);
 
 		// Store record in storage
-		uint32_t rhndl = gs_slot_array_insert(storage->records, record);
+		uint32_t rhndl = gs_slot_array_insert(importer->records, record);
 
 		// Set asset record hndl
 		asset->record_hndl = rhndl;
@@ -384,15 +432,12 @@ GS_API_DECL void assets_init(asset_manager_t* am, const char* path)
 	// Clear all previous records, if necessary
 	memcpy(am->root_path, path, ASSET_STR_MAX);
 
-	// Register all storage
-	asset_storage_t tex_storage = {0};
-	tex_storage.load_resource_from_file = assets_texture_t_load_resource_from_file;
-	tex_storage.asset_cls_id = obj_id(texture_t);
-
-	uint32_t hndl = gs_slot_array_insert(am->assets, tex_storage);
-	gs_hash_table_insert(am->cid2assets, tex_storage.asset_cls_id, hndl);
-	gs_hash_table_insert(am->fe2assets, gs_hash_str64("png"), hndl);
-	gs_hash_table_insert(am->fe2assets, gs_hash_str64("jpg"), hndl);
+	// Register texture importer
+	assets_register_importer(am, texture_t, (&(asset_importer_desc_t){
+		.load_resource_from_file = assets_texture_t_load_resource_from_file,
+		.file_extensions = {"png", "jpg"},
+		.file_extensions_size = 2 * sizeof(char*)
+	}));
 
 	// Open directory
 	DIR* dir = opendir(path);
@@ -479,35 +524,25 @@ GS_API_DECL void asset_qualified_name(const char* src, char* dst, size_t sz)
 
 //=======[ Texture ]==================================================================
 
-GS_API_DECL asset_t* assets_texture_t_load_resource_from_file(asset_storage_t* storage, const char* path, const asset_record_t* record, void* user_data)
+GS_API_DECL bool assets_texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
 {
 	// Need to load up texture data, store in storage (slot array), then return pointer to asset for serialization.
 	gs_graphics_texture_desc_t* desc = (gs_graphics_texture_desc_t*)user_data;		
 
 	// Load texture data from file, keep data	
-	texture_t* t = gs_malloc_init(texture_t);
+	texture_t* t = (texture_t*)out;
 	gs_asset_texture_t* tex = &t->texture;
 	bool loaded = gs_asset_texture_load_from_file(path, tex, desc, false, true);
 
 	if (!loaded)
 	{
 		// Error
-		gs_println("asset_storage_t<texture_t>::load_resource_from_file:: texture: %s not loaded.", path);
+		gs_println("error::assets_texture_t_load_resource_from_file:: texture: %s not loaded.", path);
 		gs_free(t);
-		return NULL;
+		return false;
 	}
 
-	// Insert into data array
-	uint32_t hndl = gs_slot_array_insert(storage->data, t);
-
-	// Set up tables
-	gs_transient_buffer(UUID_BUF, 34);
-	gs_platform_uuid_to_string(UUID_BUF, &record->uuid);
-	gs_hash_table_insert(storage->uuid2id, gs_hash_str64(UUID_BUF), hndl);
-	gs_hash_table_insert(storage->name2id, gs_hash_str64(record->name), hndl); 
-
-	// Return pointer to asset
-	return t;
+	return true;
 }
 
 GS_API_DECL gs_result assets_texture_t_serialize(gs_byte_buffer_t* buffer, const object_t* in)
@@ -518,7 +553,7 @@ GS_API_DECL gs_result assets_texture_t_serialize(gs_byte_buffer_t* buffer, const
     // Verify that data is available first in desc
     if (!tex->desc.data) 
 	{
-        gs_println("Error: texture_t::serialize:: texture desc data is NULL");
+        gs_println("error:assets_texture_t::serialize:: texture desc data is NULL");
         return GS_RESULT_FAILURE;
     }
 

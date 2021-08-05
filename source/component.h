@@ -1,6 +1,7 @@
 #ifndef COMPONENT_H
 #define COMPONENT_H
 
+_introspect()
 typedef struct component_base_t
 {
     BASE(object_t);
@@ -8,6 +9,7 @@ typedef struct component_base_t
     // Fields
 } component_base_t;
 
+_introspect()
 typedef struct component_transform_t
 { 
     BASE(component_base_t);
@@ -17,6 +19,7 @@ typedef struct component_transform_t
 
 } component_transform_t;
 
+_introspect()
 typedef struct component_physics_t 
 {
 	BASE(component_base_t);
@@ -27,6 +30,7 @@ typedef struct component_physics_t
 	
 } component_physics_t;
 
+_introspect()
 typedef struct component_renderable_t 
 { 
     BASE(component_base_t); 
