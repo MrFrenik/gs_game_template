@@ -144,7 +144,6 @@ GS_API_DECL void app_init_meta()
 	app->meta = meta_new();
 	meta_set_instance(&app->meta);
 
-	// This will be generated...somehow
 	// Register all necessary meta information (which includes reflection information)
 
 	// gs_graphics_texture_desc_t
@@ -174,6 +173,7 @@ GS_API_DECL void app_init_meta()
 		.name = gs_to_str(gs_asset_texture_t)
     }));
 
+	// I want to generate some vtable shit, but not sure how to do that. Want some custom meta function shit that I could register...
 	meta_register_vtable(&app->meta, texture_t, (&(vtable_t){0}));
 
 	// Register from generated (doesn't generate information for internal stuff)
