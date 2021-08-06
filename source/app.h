@@ -34,13 +34,14 @@ GS_API_DECL void app_init()
 
 	// Initialize core
 	app->core = core_new();
+	core_t* core = app->core;
 
 	// Import an asset
-    assets_import(&core->assets, "textures/logo.png", NULL);  
+    assets_import(&core->assets, "textures/logo.png", NULL);
 
 	// Allocate new player entity
-	app->player = entities_allocate(&app->entities);
-	entities_add_component(&app->entities, component_transform_t, app->player, {.transform = gs_vqs_default()});
+	app->player = entities_allocate(&core->entities);
+	entities_add_component(&core->entities, component_transform_t, app->player, {.transform = gs_vqs_default()});
 
 	// Init camera
     app->camera = gs_camera_perspective(); 
@@ -50,7 +51,7 @@ GS_API_DECL void app_init()
 GS_API_DECL void app_update()
 {
     app_t* app = gs_engine_user_data(app_t);
-	core_t* core = &app->core;
+	core_t* core = app->core;
     gs_command_buffer_t* cb = &core->cb;
     gs_immediate_draw_t* gsi = &core->gsi;
 
@@ -64,7 +65,6 @@ GS_API_DECL void app_update()
 	
 	gs_vec3 vel = gs_v3s(0.f);
 	component_transform_t* tc = entities_get_component(&core->entities, component_transform_t, app->player);
-	component_physics_t* pc = entities_get_component(&core->entities, component_physics_t, app->player);
 	tc->transform.rotation = gs_quat_mul_list(3, 
 		gs_quat_angle_axis(gs_deg2rad(+t * 0.01f), GS_XAXIS), 
 		gs_quat_angle_axis(gs_deg2rad(+t * 0.02f), GS_YAXIS), 

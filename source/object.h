@@ -135,7 +135,7 @@ GS_API_DECL void meta_register_gs(meta_t* meta)
 	//==== [ GS Meta ] ===== (these need to be manually registered for now)
 
 	// gs_graphics_texture_desc_t
-    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+    gs_meta_class_register(&meta->registry, (&(gs_meta_class_decl_t){
         .properties = (gs_meta_property_t[]) {
             gs_meta_property(gs_graphics_texture_desc_t, uint32_t, width, GS_META_PROPERTY_TYPE_INFO_U32),
             gs_meta_property(gs_graphics_texture_desc_t, uint32_t, height, GS_META_PROPERTY_TYPE_INFO_U32),
@@ -153,7 +153,7 @@ GS_API_DECL void meta_register_gs(meta_t* meta)
     }));
 
 	// gs_asset_texture_t
-    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+    gs_meta_class_register(&meta->registry, (&(gs_meta_class_decl_t){
         .properties = (gs_meta_property_t[]) {
             gs_meta_property(gs_asset_texture_t, gs_graphics_texture_desc_t, desc, GS_META_PROPERTY_TYPE_INFO_OBJ),
         },

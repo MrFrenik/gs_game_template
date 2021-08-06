@@ -18,7 +18,7 @@ GS_API_DECL void core_delete(core_t* core);
 
 GS_API_DECL core_t* core_new()
 {
-	core_t core = gs_malloc_init(core_t);
+	core_t* core = gs_malloc_init(core_t);
 
     //=== [ Structures ] ===// 
 	
@@ -50,6 +50,8 @@ GS_API_DECL core_t* core_new()
 	// Register components	
 	entities_register_component(&core->entities, component_transform_t);
 	entities_register_component(&core->entities, component_physics_t);
+
+	return core;
 }
 
 GS_API_DECL void core_delete(core_t* core)
