@@ -17,6 +17,9 @@
 #define GS_PHYSICS_IMPL
 #include <gs/util/gs_physics.h>
 
+#define LEXER_IMPL
+#include "lexer.h"
+
 #define CONTAINERS_IMPL
 #include "containers.h"
 
@@ -25,6 +28,9 @@
 
 #define ASSET_IMPL
 #include "asset.h"
+
+#define GRAPHICS_IMPL
+#include "graphics.h"
 
 #define COMPONENT_IMPL
 #include "component.h"
