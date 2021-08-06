@@ -277,6 +277,7 @@ GS_API_DECL gs_token_t gs_lexer_c_next_token(gs_lexer_t* lex)
 				// Single line comment
 				if ((lex->at[0] == '/') && (lex->at[1]) && (lex->at[1] == '/'))
 				{
+					gs_println("single line comment");
 					lex->at += 2;
 					while (lex->at[0] && !gs_char_is_end_of_line(lex->at[0]))
 					{
@@ -289,17 +290,26 @@ GS_API_DECL gs_token_t gs_lexer_c_next_token(gs_lexer_t* lex)
 				// Multi line comment
 				else if ((lex->at[0] == '/') && (lex->at[1]) && (lex->at[1] == '*'))
 				{
+					gs_println("multi line comment");
 					lex->at += 2;
-					while (lex->at[0] && lex->at[1] && !(lex->at[0] == '*' && lex->at[1] == '/'))
+					while (lex->can_lex(lex))
 					{
-						lex->at++;
-					}
-					if (lex->at[0] == '*')
-					{
+						gs_println("c: %c", lex->at[0]);
+						if (lex->at[0] == '*' && lex->at[1] == '/')
+						{
+							lex->at += 2;
+							break;
+						}
 						lex->at++;
 					}
 					t.len = lex->at - t.text;
 					t.type = GS_TOKEN_MULTI_LINE_COMMENT;
+				}
+				// it's just a forward slash
+				else
+				{
+					t.type = GS_TOKEN_FSLASH;
+					lex->at++;
 				}
 		    } break;
 
@@ -368,6 +378,8 @@ GS_API_DECL gs_token_t gs_lexer_c_next_token(gs_lexer_t* lex)
 			} break;
 		}
 	}
+
+	return t;
 }
 
 GS_API_DECL gs_token_t gs_lexer_current_token(const gs_lexer_t* lex)
@@ -481,7 +493,8 @@ GS_API_DECL gs_token_t gs_lexer_advance_before_next_token_type(gs_lexer_t* lex, 
 GS_API_DECL gs_lexer_t gs_lexer_c_ctor(const char* contents)
 {
 	gs_lexer_t lex = gs_default_val();
-	gs_lexer_set_contents(&lex, contents);
+	lex.contents = contents;
+	lex.at = contents;
 	lex.can_lex = gs_lexer_c_can_lex;
 	lex.eat_white_space = gs_lexer_c_eat_white_space;
 	lex.next_token = gs_lexer_c_next_token;
