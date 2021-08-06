@@ -41,5 +41,8 @@
 #define PLAYER_IMPL
 #include "player.h"
 
+#define GENERATED_IMPL
+#include "reflection/generated.h"
+
 #define APP_IMPL
 #include "app.h"

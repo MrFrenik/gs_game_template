@@ -30,7 +30,7 @@ cl /w /MP -Zi /DEBUG:FULL /Fe%refl_name%.exe %src_refl_main% %inc% %refl_inc% ^
 %os_libs%
 
 rem Run Reflection
-%refl_name%.exe "../source/"
+%refl_name%.exe "../source/" "../source/reflection/"
 
 rem Compile Release
 rem cl /MP /FS /Ox /W0 /Fe%name%.exe %src_main% %inc% ^

@@ -40,7 +40,56 @@ typedef struct reflection_data_t
 {
 	gs_hash_table(uint64_t, meta_class_t) classes;
 	gs_hash_table(uint64_t, meta_enum_t) enums;
+	gs_hash_table(uint64_t, const char*) type2info;
 } reflection_data_t;
+
+void reflection_data_init(reflection_data_t* refl)
+{
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("uint8_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U8));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("u8"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U8));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("int8_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S8));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("s8"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S8));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("uint16_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U16));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("u16"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U16));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("int16_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S16));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("uint32_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U32));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("u32"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U32));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("int32_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S32));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("s32"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S32));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("uint64_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U64));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("u64"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U64));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("int64_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S64));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("s64"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S64));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("float"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F32));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("f32"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F32));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("double"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F64));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("f64"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F64));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vec2"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC2));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vec3"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC3));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vec4"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC4));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_mat4"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_MAT4));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vqs"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VQS));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_uuid_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_UUID));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("size_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_SIZE_T));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("char"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_STR));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("void"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_OBJ));
+}
+
+bool prop_is_enum(reflection_data_t* refl, const char* type)
+{
+	return (gs_hash_table_exists(refl->enums, gs_hash_str64(type)));
+}
+
+const char* prop_type_to_type_info(reflection_data_t* refl, const char* type)
+{
+	uint64_t hash = gs_hash_str64(type);
+	if (gs_hash_table_exists(refl->type2info, hash))
+	{
+		return gs_hash_table_get(refl->type2info, hash);
+	}
+
+	return "GS_META_PROPERTY_TYPE_INFO_OBJ";
+}
 
 void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* lex)
 {
@@ -248,8 +297,6 @@ void parse_file(reflection_data_t* refl, const char* path)
 							gs_lexer_find_next_token_type(&lex, GS_TOKEN_IDENTIFIER);
 						}
 
-						gs_token_debug_print(&lex.current_token);
-
 						// Struct
 						if (gs_token_compare_text(&lex.current_token, "struct"))
 						{
@@ -270,19 +317,179 @@ void parse_file(reflection_data_t* refl, const char* path)
 	}
 }
 
+void write_reflection_file(reflection_data_t* refl, const char* dir)
+{
+	// Path to write to
+	gs_snprintfc(PATH, META_STR_MAX, "%sgenerated.h", dir);
+
+	// Open file, then dump meta information
+	FILE* fp = fopen(PATH, "w");
+	if (!fp) 
+	{
+		return;
+	}
+
+	// Write out header information
+	gs_fprintln(fp, "#ifndef GENERATED_H");	
+	gs_fprintln(fp, "#define GENERATED_H\n");	
+
+	// Write out warning information
+	gs_fprintln(fp, "/*");	
+	gs_fprintln(fp, " * This file has been generated. All modifications will be lost.");	
+	gs_fprintln(fp, "*/");	
+
+	// Formatting
+	gs_fprintln(fp, "");	
+	
+	// Functions API
+	gs_fprintln(fp, "GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta);");	
+
+	// Implementation
+	gs_fprintln(fp, "\n//============[ Implementation ]==============//\n");	
+
+	gs_fprintln(fp, "#ifdef GENERATED_IMPL\n");	
+
+	// Register meta information function implementation
+	gs_fprintln(fp, "GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)");	
+	gs_fprintln(fp, "{");	
+	{
+		// Register enums
+		gs_fprintln(fp, "\t// == [ enums ] == \n");	
+
+		for
+		(
+			gs_hash_table_iter it = gs_hash_table_iter_new(refl->enums);
+			gs_hash_table_iter_valid(refl->enums, it);
+			gs_hash_table_iter_advance(refl->enums, it)
+		)
+		{
+			meta_enum_t* e = gs_hash_table_iter_getp(refl->enums, it);
+
+			const char* name = e->name;
+			uint32_t val_cnt = gs_dyn_array_size(e->values);
+
+			// Write out name as comment
+			gs_fprintln(fp, "\t// %s", name);	
+			gs_fprintln(fp, "\tgs_meta_enum_register(meta, (&(gs_meta_enum_decl_t) {");	
+			{
+				gs_fprintln(fp, "\t\t.values = (gs_meta_enum_value_t[]) {");	
+				{
+					gs_for_range_i(val_cnt)
+					{ 
+						const meta_enum_val_t* v = &e->values[i];
+						gs_fprintf(fp, "\t\t\t(gs_meta_enum_value_t){.name = gs_to_str(%s)}", v->name);	
+						if (i < val_cnt - 1)
+						{
+							gs_fprintf(fp, ",");	
+						}
+						gs_fprintf(fp, "\n");
+					}
+				}
+				gs_fprintln(fp, "\t\t},");	
+				gs_fprintln(fp, "\t\t.size = %zu * sizeof(gs_meta_enum_value_t),", val_cnt);	
+				gs_fprintln(fp, "\t\t.name = gs_to_str(%s)", name);	
+			}
+			gs_fprintln(fp, "\t}));");	
+		}
+
+		// Formatting
+		gs_fprintln(fp, "");	
+
+		// Register classes
+		gs_fprintln(fp, "\t// == [ classes ] == \n");	
+
+		for 
+		(
+			gs_hash_table_iter it = gs_hash_table_iter_new(refl->classes);
+			gs_hash_table_iter_valid(refl->classes, it);
+			gs_hash_table_iter_advance(refl->classes, it)
+		)
+		{
+			meta_class_t* c = gs_hash_table_iter_getp(refl->classes, it);
+
+			const char* name = c->name;
+			const char* base = c->base;
+			uint32_t prop_cnt = gs_dyn_array_size(c->properties);
+
+			// Write out name as comment
+			gs_fprintln(fp, "\t// %s", name);	
+			gs_fprintln(fp, "\tgs_meta_class_register(meta, (&(gs_meta_class_decl_t) {");	
+			{
+				if (prop_cnt)
+				{
+					// Write out properties
+					gs_fprintln(fp, "\t\t.properties = (gs_meta_property_t[]) {");	
+					{
+						gs_for_range_i(prop_cnt)
+						{
+							// Write out property
+							meta_prop_t* p = &c->properties[i];
+
+							// Type of property
+							const char* type = NULL;
+							if (prop_is_enum(refl, p->type))
+							{
+								type = gs_to_str(GS_META_PROPERTY_TYPE_INFO_ENUM);
+							}
+							else
+							{
+								type = prop_type_to_type_info(refl, p->type);
+							}
+
+							gs_fprintf(fp, "\t\t\tgs_meta_property(%s, %s, %s, %s)", 
+								name, 
+								p->type, 
+								p->name, 
+								type
+							);	
+
+							if (i < prop_cnt - 1)
+							{
+								gs_fprintf(fp, ",");	
+							}
+							gs_fprintf(fp, "\n");	
+						}
+					}
+					gs_fprintln(fp,  "\t\t},");	
+					gs_fprintln(fp,  "\t\t.size = %zu * sizeof(gs_meta_property_t),", prop_cnt);	
+				}
+
+				gs_fprintln(fp,  "\t\t.name = gs_to_str(%s),", name);	
+				gs_fprintln(fp,  "\t\t.base = gs_to_str(%s)", base);	
+			}
+			gs_fprintln(fp, "\t}));");	
+
+			// Formatting
+			gs_fprintln(fp, "");	
+		}
+	}
+	gs_fprintln(fp, "}");	
+
+	// Formatting
+	gs_fprintln(fp, "");
+
+	// Footer
+	gs_fprintln(fp, "#endif // GENERATED_IMPL");	
+	gs_fprintln(fp, "#endif // GENERATED_H");	
+
+	// Close the file
+	fclose(fp);
+}
+
 int32_t main(int32_t argc, char** argv)
 {
+	// Init reflection data structure
+	reflection_data_t refl = {0};
+	reflection_data_init(&refl);
+
 	if (!argc > 1)
 	{
 		return 0;
 	}
 
-	reflection_data_t refl = {0};
-
-	const char* path = argv[1];
-	gs_println("path: %s", path);
-
 	// Iterate through directory, collect files to open, generate data
+	const char* path = argv[1];
+	const char* output_dir = argv[2];
 	DIR* dir = opendir(path);	
 	if (dir)
 	{
@@ -311,18 +518,13 @@ int32_t main(int32_t argc, char** argv)
 						continue;
 					}
 				
+					// Skip directories for now...
 					gs_snprintfc(DIRPATH, META_STR_MAX, "%s/%s", path, ent->d_name);
 					gs_println("dir: %s", DIRPATH);
 				} break;
 
-				case DT_LNK:
-				{
-					gs_println("link: %s", ent->d_name);
-				} break;
-
 				default:
 				{
-					gs_println("def: %s", ent->d_name);
 				} break;
 			}
 		}
@@ -330,39 +532,6 @@ int32_t main(int32_t argc, char** argv)
 		closedir(dir);
 	}
 
-	// Print enums
-	// Now we should have all of our reflection data from these files
-	gs_println("Enums: %zu", gs_hash_table_size(refl.enums));
-
-	for (
-		gs_hash_table_iter it = gs_hash_table_iter_new(refl.enums);
-		gs_hash_table_iter_valid(refl.enums, it);
-		gs_hash_table_iter_advance(refl.enums, it)
-	)
-	{
-		meta_enum_t* e = gs_hash_table_iter_getp(refl.enums, it);
-		gs_println("e: %s", e->name);
-		gs_for_range_i(gs_dyn_array_size(e->values))
-		{
-			gs_println("\tv: %s", e->values[i].name);
-		}
-	}
-
-	// Print classes
-	gs_println("Classes: %zu", gs_hash_table_size(refl.classes));
-	for (
-		gs_hash_table_iter it = gs_hash_table_iter_new(refl.classes);
-		gs_hash_table_iter_valid(refl.classes, it);
-		gs_hash_table_iter_advance(refl.classes, it)
-	)
-	{
-		meta_class_t* c = gs_hash_table_iter_getp(refl.classes, it);
-		gs_println("c: %s", c->name);
-		gs_for_range_i(gs_dyn_array_size(c->properties))
-		{
-			meta_prop_t* p = &c->properties[i];
-			gs_println("\tp: %s %s, cp: %zu, pc: %zu", p->type, p->name, p->is_const_ptr, p->pointer_count);
-		}
-	}
-
+	// Write reflection data to file
+	write_reflection_file(&refl, output_dir);
 }

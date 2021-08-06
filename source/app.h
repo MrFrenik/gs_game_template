@@ -147,16 +147,6 @@ GS_API_DECL void app_init_meta()
 	// This will be generated...somehow
 	// Register all necessary meta information (which includes reflection information)
 
-	// asset_t
-    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
-        .properties = (gs_meta_property_t[]) {
-            gs_meta_property(asset_t, uint32_t, record_hndl, GS_META_PROPERTY_TYPE_INFO_U32)
-        },
-        .size = 1 * sizeof(gs_meta_property_t),
-		.name = gs_to_str(asset_t),
-		.base = gs_to_str(object_t)
-    }));
-
 	// gs_graphics_texture_desc_t
     gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
         .properties = (gs_meta_property_t[]) {
@@ -183,18 +173,11 @@ GS_API_DECL void app_init_meta()
         .size = 1 * sizeof(gs_meta_property_t),
 		.name = gs_to_str(gs_asset_texture_t)
     }));
-	
-	// texture_t
-    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
-        .properties = (gs_meta_property_t[]) {
-            gs_meta_property(texture_t, gs_asset_texture_t, texture, GS_META_PROPERTY_TYPE_INFO_OBJ),
-        },
-        .size = 1 * sizeof(gs_meta_property_t),
-		.name = gs_to_str(texture_t),
-		.base = gs_to_str(asset_t)
-    }));
 
 	meta_register_vtable(&app->meta, texture_t, (&(vtable_t){0}));
+
+	// Register from generated (doesn't generate information for internal stuff)
+	meta_register_generated(&app->meta);
 }
 		
 GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv)
