@@ -15,6 +15,7 @@ struct asset_storage_t;
  * 		Use dirent.h for file iteration to get around windows garbage
 */
 
+_introspect()
 typedef enum asset_state
 {
 	ASSET_STATE_UNLOADED = 0x00,
@@ -26,6 +27,7 @@ GS_API_DECL void asset_qualified_name(const char* src, char* dst, size_t sz);
 
 typedef uint32_t asset_hndl_t;
 
+_introspect()
 typedef struct asset_t
 {
 	BASE(object_t);

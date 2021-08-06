@@ -76,7 +76,7 @@ GS_API_DECL gs_token_t gs_lexer_current_token(const gs_lexer_t* lex);
 GS_API_DECL bool gs_lexer_require_token_text(gs_lexer_t* lex, const char* match);
 GS_API_DECL bool gs_lexer_require_token_type(gs_lexer_t* lex, gs_token_type type);
 GS_API_DECL bool gs_lexer_current_token_compare_type(const gs_lexer_t* lex, gs_token_type type);
-GS_API_DECL gs_token_t gs_lexer_peek_next_token(gs_lexer_t* lex);
+GS_API_DECL gs_token_t gs_lexer_peek(gs_lexer_t* lex);
 GS_API_DECL bool gs_lexer_find_next_token_type(gs_lexer_t* lex, gs_token_type type);
 GS_API_DECL gs_token_t gs_lexer_advance_before_next_token_type(gs_lexer_t* lex, gs_token_type type);
 
@@ -277,7 +277,6 @@ GS_API_DECL gs_token_t gs_lexer_c_next_token(gs_lexer_t* lex)
 				// Single line comment
 				if ((lex->at[0] == '/') && (lex->at[1]) && (lex->at[1] == '/'))
 				{
-					gs_println("single line comment");
 					lex->at += 2;
 					while (lex->at[0] && !gs_char_is_end_of_line(lex->at[0]))
 					{
@@ -290,11 +289,9 @@ GS_API_DECL gs_token_t gs_lexer_c_next_token(gs_lexer_t* lex)
 				// Multi line comment
 				else if ((lex->at[0] == '/') && (lex->at[1]) && (lex->at[1] == '*'))
 				{
-					gs_println("multi line comment");
 					lex->at += 2;
 					while (lex->can_lex(lex))
 					{
-						gs_println("c: %c", lex->at[0]);
 						if (lex->at[0] == '*' && lex->at[1] == '/')
 						{
 							lex->at += 2;
@@ -379,6 +376,9 @@ GS_API_DECL gs_token_t gs_lexer_c_next_token(gs_lexer_t* lex)
 		}
 	}
 
+	// Set current token for lex
+	lex->current_token = t;
+
 	return t;
 }
 
@@ -392,7 +392,7 @@ GS_API_DECL bool gs_lexer_current_token_compare_type(const gs_lexer_t* lex, gs_t
 	return (lex->current_token.type == type);
 }
 
-GS_API_DECL gs_token_t gs_lexer_peek_next_token(gs_lexer_t* lex)
+GS_API_DECL gs_token_t gs_lexer_peek(gs_lexer_t* lex)
 {
 	// Store current at and current token
 	const char* at = lex->at;
@@ -463,7 +463,7 @@ GS_API_DECL bool gs_lexer_require_token_type(gs_lexer_t* lex, gs_token_type type
 // Advances until next token of given type is found
 GS_API_DECL bool gs_lexer_find_next_token_type(gs_lexer_t* lex, gs_token_type type)
 {
-	gs_token_t t = lex->current_token;
+	gs_token_t t = lex->next_token(lex);
 	while (lex->can_lex(lex))
 	{
 		if (gs_token_compare_type(&t, type))
@@ -478,13 +478,13 @@ GS_API_DECL bool gs_lexer_find_next_token_type(gs_lexer_t* lex, gs_token_type ty
 GS_API_DECL gs_token_t gs_lexer_advance_before_next_token_type(gs_lexer_t* lex, gs_token_type type)
 {
 	gs_token_t t = lex->current_token;
-	gs_token_t peek_t = gs_lexer_peek_next_token(lex);
+	gs_token_t peek_t = gs_lexer_peek(lex);
 
 	// Continue right up until required token type
 	while (!gs_token_compare_type(&peek_t, type))
 	{
 		t = lex->next_token(lex);
-		peek_t = gs_lexer_peek_next_token(lex);
+		peek_t = gs_lexer_peek(lex);
 	}
 
 	return t;
