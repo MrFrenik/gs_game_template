@@ -25,8 +25,6 @@ typedef enum asset_state
 // Functions
 GS_API_DECL void asset_qualified_name(const char* src, char* dst, size_t sz);
 
-typedef uint32_t asset_hndl_t;
-
 _introspect()
 typedef struct asset_t
 {
@@ -54,6 +52,7 @@ typedef struct texture_t
 
 	// Fields
 	gs_asset_texture_t texture;
+	const char*** blah;
 
 } texture_t;
 

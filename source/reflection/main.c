@@ -24,7 +24,9 @@ typedef struct meta_enum_t
 typedef struct meta_prop_t 
 {
 	char name[META_STR_MAX];
-	gs_meta_property_type type;
+	char type[META_STR_MAX];
+	bool is_const_ptr;
+	uint32_t pointer_count;	
 } meta_prop_t;
 
 typedef struct meta_class_t
@@ -40,16 +42,126 @@ typedef struct reflection_data_t
 	gs_hash_table(uint64_t, meta_enum_t) enums;
 } reflection_data_t;
 
+void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* lex)
+{
+	gs_token_t t = lex->current_token;
+	
+	// Ignore this field
+	if (gs_token_compare_text(&t, "_ignore"))
+	{
+		// Move to the semicolon
+		gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON);
+	}
+	// Parse 'BASE' tag
+	else if (gs_token_compare_text(&t, "BASE"))
+	{
+		// Get opening paren
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) gs_assert(false);
+		t = lex->current_token;
+		
+		// Now we have the base class
+		memcpy(c->base, t.text, t.len);
+
+		// Move to the semicolon
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON)) gs_assert(false);
+	}
+	// Otherwise, it's a field
+	else
+	{
+		meta_prop_t p = {0};
+		bool set_type = false;
+
+		// Need to deal with any qualifier shit 
+		if (gs_token_compare_text(&t, "const"))
+		{
+			p.is_const_ptr = true;
+			if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) gs_assert(false);
+		}
+
+		// Get next field, require identifier for field type
+		t = lex->current_token;
+		memcpy(p.type, t.text, t.len);
+
+		// Do remainder of field (account for asterisks)
+		t = lex->next_token(lex);
+		while (t.type != GS_TOKEN_IDENTIFIER)
+		{
+			t = lex->next_token(lex);
+			switch (t.type)
+			{
+				case GS_TOKEN_ASTERISK:
+				{
+					p.pointer_count++;
+				} break;
+			}
+		}
+
+		// Require identifier for field name
+		t = lex->current_token;
+		memcpy(p.name, t.text, t.len);
+
+		// Require semi colon
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON)) gs_assert(false);
+
+		// Add to class properties
+		gs_dyn_array_push(c->properties, p);
+	}
+}
+
 void parse_struct(reflection_data_t* refl, gs_lexer_t* lex)
 {
 	// Store current token for lexer
-	gs_token_t cur_t = lex->current_token;
+	gs_token_t t = lex->current_token;
+	meta_class_t cls = {0};
+
+	// Find opening brace (if identifier found, store name)
+	while (lex->can_lex(lex) && t.type != GS_TOKEN_LBRACE)
+	{
+		t = lex->next_token(lex);
+		switch (t.type)
+		{
+			case GS_TOKEN_IDENTIFIER:
+			{
+				memcpy(cls.name, t.text, t.len);
+			} break;
+		}
+	}
+
+	// Parse to end of block
+	while (lex->can_lex(lex) && t.type != GS_TOKEN_RBRACE)
+	{
+		t = lex->next_token(lex);
+		switch (t.type)
+		{
+			// Parse all fields
+			case GS_TOKEN_IDENTIFIER: 
+			{
+				parse_struct_field(refl, &cls, lex);
+			} break;
+		}
+	}
+
+	// Parse to semi colon (if identifier found, store name)
+	while (lex->can_lex(lex) && t.type != GS_TOKEN_SEMI_COLON)
+	{
+		t = lex->next_token(lex);
+		switch (t.type)
+		{
+			case GS_TOKEN_IDENTIFIER:
+			{
+				memcpy(cls.name, t.text, t.len);
+			} break;
+		}
+	}
+
+	// Add to reflection data
+	gs_hash_table_insert(refl->classes, gs_hash_str64(cls.name), cls);
 }
 
 void parse_enum(reflection_data_t* refl, gs_lexer_t* lex)
 {
 	// Store current token
-	gs_token_t cur_t = lex->current_token;
 	gs_token_t t = lex->current_token;
 	meta_enum_t e = {0};
 
@@ -170,8 +282,6 @@ int32_t main(int32_t argc, char** argv)
 	const char* path = argv[1];
 	gs_println("path: %s", path);
 
-	parse_file(&refl, "../source/entity.h");
-
 	// Iterate through directory, collect files to open, generate data
 	DIR* dir = opendir(path);	
 	if (dir)
@@ -220,6 +330,39 @@ int32_t main(int32_t argc, char** argv)
 		closedir(dir);
 	}
 
+	// Print enums
 	// Now we should have all of our reflection data from these files
 	gs_println("Enums: %zu", gs_hash_table_size(refl.enums));
+
+	for (
+		gs_hash_table_iter it = gs_hash_table_iter_new(refl.enums);
+		gs_hash_table_iter_valid(refl.enums, it);
+		gs_hash_table_iter_advance(refl.enums, it)
+	)
+	{
+		meta_enum_t* e = gs_hash_table_iter_getp(refl.enums, it);
+		gs_println("e: %s", e->name);
+		gs_for_range_i(gs_dyn_array_size(e->values))
+		{
+			gs_println("\tv: %s", e->values[i].name);
+		}
+	}
+
+	// Print classes
+	gs_println("Classes: %zu", gs_hash_table_size(refl.classes));
+	for (
+		gs_hash_table_iter it = gs_hash_table_iter_new(refl.classes);
+		gs_hash_table_iter_valid(refl.classes, it);
+		gs_hash_table_iter_advance(refl.classes, it)
+	)
+	{
+		meta_class_t* c = gs_hash_table_iter_getp(refl.classes, it);
+		gs_println("c: %s", c->name);
+		gs_for_range_i(gs_dyn_array_size(c->properties))
+		{
+			meta_prop_t* p = &c->properties[i];
+			gs_println("\tp: %s %s, cp: %zu, pc: %zu", p->type, p->name, p->is_const_ptr, p->pointer_count);
+		}
+	}
+
 }

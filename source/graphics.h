@@ -8,8 +8,8 @@ typedef struct renderable_t
 
 	// Fields
 	gs_gfxt_renderable_t data;
-	asset_hndl_t mesh_hndl;
-	asset_hndl_t material_hndl;
+	uint32_t mesh_hndl;
+	uint32_t material_hndl;
 
 } renderable_t;
 
