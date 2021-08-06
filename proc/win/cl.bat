@@ -38,7 +38,7 @@ rem /EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:LIBCMT
 rem %os_libs%
 
 rem Compile Debug
-cl /w /MP -Zi /DEBUG:FULL /Fe%name%.exe %src_all% %inc% ^
+cl /w /MP -Zi /DEBUG:FULL /Fe%name%.exe %src_main% %inc% ^
 /EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:LIBCMT ^
 %os_libs%
 

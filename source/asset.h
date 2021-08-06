@@ -141,9 +141,9 @@ typedef struct asset_manager_t
 
 } asset_manager_t;
 
-GS_API_DECL void assets_init(const char* root_path);
+GS_API_DECL void assets_init(asset_manager_t* am, const char* root_path);
 GS_API_DECL const char* assets_get_internal_file_extension(const char* ext);
-GS_API_DECL void assets_import(const char* path, void* user_data);
+GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data);
 GS_API_DECL gs_result assets_serialize_asset(const char* path, const asset_t* in);
 GS_API_DECL gs_result assets_deserialize_asset(const char*path, asset_t* out);
 GS_API_DECL void* assets_get_data_internal(uint64_t cls_id);

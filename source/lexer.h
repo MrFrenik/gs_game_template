@@ -447,7 +447,7 @@ GS_API_DECL bool gs_lexer_require_token_type(gs_lexer_t* lex, gs_token_type type
 	// Compare token type
 	if (gs_token_compare_type(&next_t, type))
 	{
-		return;
+		return true;
 	}
 
 	// Error

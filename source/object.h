@@ -1,6 +1,9 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+// Forward decl
+struct meta_t;
+
 typedef struct object_t
 {
 	uint64_t cls_id;
@@ -23,7 +26,7 @@ GS_API_DECL void object_dtor_default(object_t* obj);
 
 GS_API_DECL object_t* _obj_new_internal(uint64_t id, size_t sz);
 
-GS_API_DECL void obj_dump(void* obj, gs_meta_class_t* cls);
+GS_API_DECL void obj_dump(struct meta_t* meta, void* obj, gs_meta_class_t* cls);
 
 typedef struct meta_t
 {
