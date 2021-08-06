@@ -17,12 +17,6 @@
 #define GS_PHYSICS_IMPL
 #include <gs/util/gs_physics.h>
 
-#define LEXER_IMPL
-#include "lexer.h"
-
-#define CONTAINERS_IMPL
-#include "containers.h"
-
 #define OBJECT_IMPL
 #include "object.h"
 
@@ -43,6 +37,9 @@
 
 #define GENERATED_IMPL
 #include "reflection/generated.h"
+
+#define CORE_IMPL
+#include "core.h"
 
 #define APP_IMPL
 #include "app.h"

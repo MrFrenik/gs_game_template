@@ -5,9 +5,6 @@
 #define GS_META_IMPL
 #include <gs/util/gs_meta.h>
 
-#define LEXER_IMPL
-#include "lexer.h"
-
 #define META_STR_MAX 512
 
 typedef struct meta_enum_val_t

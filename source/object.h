@@ -38,6 +38,7 @@ typedef struct meta_t
 GS_API_DECL meta_t meta_new();
 GS_API_DECL meta_t* meta_get_instance();
 GS_API_DECL void meta_set_instance(meta_t* meta);
+GS_API_DECL void meta_register_gs(meta_t* meta);
 GS_API_DECL void _meta_register_vtable_internal(meta_t* meta, uint64_t* id, vtable_t* table);
 
 #define meta_register_vtable(META, T, TABLE)\
@@ -128,6 +129,39 @@ GS_API_DECL void _meta_register_vtable_internal(meta_t* meta, uint64_t* id, vtab
 	table.deserialize = table.deserialize ? table.deserialize : object_deserialize_default;
 	gs_hash_table_insert(meta->vtables, id, table);
 }
+
+GS_API_DECL void meta_register_gs(meta_t* meta)
+{
+	//==== [ GS Meta ] ===== (these need to be manually registered for now)
+
+	// gs_graphics_texture_desc_t
+    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+        .properties = (gs_meta_property_t[]) {
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, width, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, height, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, format, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, wrap_s, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, wrap_t, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, min_filter, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, mag_filter, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, mip_filter, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, num_mips, GS_META_PROPERTY_TYPE_INFO_U32),
+            gs_meta_property(gs_graphics_texture_desc_t, uint32_t, render_target, GS_META_PROPERTY_TYPE_INFO_U32)
+        },
+        .size = 10 * sizeof(gs_meta_property_t),
+		.name = gs_to_str(gs_graphics_texture_desc_t)
+    }));
+
+	// gs_asset_texture_t
+    gs_meta_class_register(&app->meta.registry, (&(gs_meta_class_decl_t){
+        .properties = (gs_meta_property_t[]) {
+            gs_meta_property(gs_asset_texture_t, gs_graphics_texture_desc_t, desc, GS_META_PROPERTY_TYPE_INFO_OBJ),
+        },
+        .size = 1 * sizeof(gs_meta_property_t),
+		.name = gs_to_str(gs_asset_texture_t)
+    }));
+}
+
 
 GS_API_DECL void obj_dump(meta_t* meta, void* obj, gs_meta_class_t* cls)
 {
