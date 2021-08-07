@@ -8,7 +8,7 @@
 // App struct declaration 
 typedef struct app_t
 {
-    BASE(object_t);
+    base(object_t)
 
     // Fields
 	core_t* core;
@@ -46,6 +46,14 @@ GS_API_DECL void app_init()
 	// Init camera
     app->camera = gs_camera_perspective(); 
 	app->camera.transform.position = gs_v3(0.f, 0.f, 2.f);
+
+    // Try to call some funcs and shit
+    const gs_meta_class_t* cls = gs_meta_class_get(&core->meta.registry, texture_t);
+    ((obj_ctor_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("ctor"))))(NULL);
+    ((obj_dtor_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("dtor"))))(NULL);
+    ((obj_malloc_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("malloc"))))(0);
+    ((obj_serialize_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("serialize"))))(NULL, NULL);
+    ((obj_deserialize_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("deserialize"))))(NULL, NULL);
 }
 
 GS_API_DECL void app_update()

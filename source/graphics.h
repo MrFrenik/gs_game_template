@@ -1,10 +1,10 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
-_introspect()
+introspect()
 typedef struct renderable_t
 {
-	BASE(object_t);
+	base(object_t)
 
 	// Fields
 	gs_gfxt_renderable_t data;
@@ -18,7 +18,7 @@ GS_API_DECL void renderable_set_material_uniform(renderable_t* rend, const char*
 // Need a way to add renderables to a scene
 typedef struct graphics_scene_t 
 {
-	BASE(object_t);
+	base(object_t)
 
 	// Fields
 	gs_slot_array(renderable_t) renderables;

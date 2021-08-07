@@ -1,28 +1,28 @@
 #ifndef COMPONENT_H
 #define COMPONENT_H
 
-_introspect()
+introspect()
 typedef struct component_base_t
 {
-    BASE(object_t);
+    base(object_t)
 
     // Fields
 } component_base_t;
 
-_introspect()
+introspect()
 typedef struct component_transform_t
 { 
-    BASE(component_base_t);
+    base(component_base_t)
 
     // Fields
     gs_vqs transform;
 
 } component_transform_t;
 
-_introspect()
+introspect()
 typedef struct component_physics_t 
 {
-	BASE(component_base_t);
+	base(component_base_t)
 
 	// Fields
 	gs_vec3 velocity;
@@ -30,10 +30,10 @@ typedef struct component_physics_t
 	
 } component_physics_t;
 
-_introspect()
+introspect()
 typedef struct component_renderable_t 
 { 
-    BASE(component_base_t); 
+    base(component_base_t)
 
     // Fields 
     uint32_t renderable_id;

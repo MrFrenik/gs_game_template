@@ -15,7 +15,7 @@ struct asset_storage_t;
  * 		Use dirent.h for file iteration to get around windows garbage
 */
 
-_introspect()
+introspect()
 typedef enum asset_state
 {
 	ASSET_STATE_UNLOADED = 0x00,
@@ -25,10 +25,10 @@ typedef enum asset_state
 // Functions
 GS_API_DECL void asset_qualified_name(const char* src, char* dst, size_t sz);
 
-_introspect()
+introspect()
 typedef struct asset_t
 {
-	BASE(object_t);
+    base(object_t)
 
 	// Fields
     uint32_t record_hndl;    // Handle to internal record for asset
@@ -38,30 +38,42 @@ typedef struct asset_t
 
 typedef struct mesh_t 
 {
-	BASE(asset_t);
+	base(asset_t)
 	
 	// Fields
 	gs_gfxt_mesh_t mesh;
 
 } mesh_t;
 
-_introspect()
+introspect()
 typedef struct texture_t
 {
-	BASE(asset_t);
+	base(asset_t)
+
+    // Vtable
+    vtable(
+        .ctor = texture_t_ctor, 
+        .dtor = texture_t_dtor, 
+        .malloc = texture_t_malloc, 
+        .serialize = texture_t_serialize, 
+        .deserialize = texture_t_deserialize
+    )
 
 	// Fields
 	gs_asset_texture_t texture;
-	const char*** blah;
 
-} texture_t;
+} texture_t; 
 
-GS_API_DECL object_t* texture_t_new(size_t sz);
-GS_API_DECL bool assets_texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
+GS_API_DECL void texture_t_ctor(object_t* obj);
+GS_API_DECL void texture_t_dtor(object_t* obj);
+GS_API_DECL object_t* texture_t_malloc(size_t sz);
+GS_API_DECL gs_result texture_t_serialize(gs_byte_buffer_t* buffer, object_t* in);
+GS_API_DECL gs_result texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* out); 
+GS_API_DECL bool texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
 
 typedef struct font_t
 {
-	BASE(asset_t);
+	base(asset_t)
 
 	// Fields
 	gs_asset_font_t font;
@@ -70,7 +82,7 @@ typedef struct font_t
 
 typedef struct audio_source_t
 {
-	BASE(asset_t);
+    base(asset_t)
 
 	// Fields
 	gs_asset_audio_t audio;
@@ -79,16 +91,32 @@ typedef struct audio_source_t
 
 typedef struct material_t
 {
-	BASE(asset_t);
+	base(asset_t)
+
+    // VTable functions
+    vtable(
+        .ctor = material_t_ctor,
+        .dtor = material_t_dtor,
+        .malloc = material_t_malloc,
+        .serialize = material_t_serialize,
+        .deserialize = material_t_deserialize 
+    )
 
 	// Fields
 	gs_gfxt_material_t material;
 
 } material_t;
 
+// VTable functions
+GS_API_DECL void material_t_ctor(object_t* obj);
+GS_API_DECL void material_t_dtor(object_t* obj);
+GS_API_DECL object_t* material_t_malloc(size_t sz);
+GS_API_DECL gs_result material_t_serialize(gs_byte_buffer_t* buffer, object_t* in);
+GS_API_DECL gs_result material_t_deserialize(gs_byte_buffer_t* buffer, object_t* out); 
+
 typedef struct pipeline_t
 {
-	BASE(asset_t);
+	base(asset_t)
 
 	// Fields
 	gs_gfxt_pipeline_t pipeline;
@@ -97,7 +125,7 @@ typedef struct pipeline_t
 
 typedef struct asset_record_t
 {
-	BASE(asset_t);
+	base(asset_t)
 
 	// Fields
 	uint32_t hndl;		        // Handle to asset slot array in storage
@@ -117,7 +145,7 @@ typedef struct asset_importer_desc_t
 
 typedef struct asset_importer_t
 {
-	BASE(object_t);
+	base(object_t)
 
 	gs_slot_array(asset_record_t) records;		// Slot array of asset records
 	gs_hash_table(uint64_t, uint32_t) uuid2id;  // Lookup mapping from uuid to record slot id
@@ -131,7 +159,7 @@ typedef struct asset_importer_t
 
 typedef struct asset_manager_t
 {
-	BASE(object_t);
+	base(object_t)
 
 	// Fields
 	char root_path[ASSET_STR_MAX];	
@@ -435,7 +463,7 @@ GS_API_DECL void assets_init(asset_manager_t* am, const char* path)
 
 	// Register texture importer
 	assets_register_importer(am, texture_t, (&(asset_importer_desc_t){
-		.load_resource_from_file = assets_texture_t_load_resource_from_file,
+		.load_resource_from_file = texture_t_load_resource_from_file,
 		.file_extensions = {"png", "jpg"},
 		.file_extensions_size = 2 * sizeof(char*)
 	}));
@@ -525,7 +553,7 @@ GS_API_DECL void asset_qualified_name(const char* src, char* dst, size_t sz)
 
 //=======[ Texture ]==================================================================
 
-GS_API_DECL bool assets_texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
+GS_API_DECL bool texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
 {
 	// Need to load up texture data, store in storage (slot array), then return pointer to asset for serialization.
 	gs_graphics_texture_desc_t* desc = (gs_graphics_texture_desc_t*)user_data;		
@@ -546,8 +574,29 @@ GS_API_DECL bool assets_texture_t_load_resource_from_file(const char* path, asse
 	return true;
 }
 
-GS_API_DECL gs_result assets_texture_t_serialize(gs_byte_buffer_t* buffer, const object_t* in)
+GS_API_DECL void texture_t_ctor(object_t* obj)
 {
+    // Nothing for now
+    gs_println("CTOR!");
+}
+
+GS_API_DECL void texture_t_dtor(object_t* obj)
+{
+    // Nothing for now
+    gs_println("DTOR!");
+}
+
+GS_API_DECL object_t* texture_t_malloc(size_t sz)
+{
+    // Nothing for now...
+    gs_println("MALLOC!");
+    return NULL;
+}
+
+GS_API_DECL gs_result texture_t_serialize(gs_byte_buffer_t* buffer, const object_t* in)
+{
+    gs_println("SERIALIZE!");
+    return GS_RESULT_INCOMPLETE;
 	const texture_t* t = (texture_t*)in;
 	const gs_asset_texture_t* tex = &t->texture;
 
@@ -579,8 +628,10 @@ GS_API_DECL gs_result assets_texture_t_serialize(gs_byte_buffer_t* buffer, const
 	return GS_RESULT_SUCCESS;
 }
 
-GS_API_DECL gs_result assets_texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* out)
+GS_API_DECL gs_result texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* out)
 {
+    gs_println("DESERIALIZE!");
+    return GS_RESULT_INCOMPLETE;
 	// Deserialize texture data
 	texture_t* t = (texture_t*)out;
 	gs_asset_texture_t* tex = &t->texture;
@@ -620,7 +671,7 @@ GS_API_DECL gs_result assets_texture_t_deserialize(gs_byte_buffer_t* buffer, obj
 
 //=======[ Audio ]====================================================================
 
-asset_t* assets_audio_source_t_load_resource_from_file(const char* path, const asset_record_t* record, void* user_data)
+asset_t* audio_source_t_load_resource_from_file(const char* path, const asset_record_t* record, void* user_data)
 {
 	// Need to load up data, store in storage (slot array), then return pointer to asset for serialization.
 	return NULL;
@@ -628,7 +679,7 @@ asset_t* assets_audio_source_t_load_resource_from_file(const char* path, const a
 
 //=======[ Font ]=====================================================================
 
-asset_t* assets_font_t_load_resource_from_file(const char* path, const asset_record_t* record, void* user_data)
+asset_t* font_t_load_resource_from_file(const char* path, const asset_record_t* record, void* user_data)
 {
 	// Need to load up data, store in storage (slot array), then return pointer to asset for serialization.
 	return NULL;
@@ -636,7 +687,7 @@ asset_t* assets_font_t_load_resource_from_file(const char* path, const asset_rec
 
 //=======[ Mesh ]=====================================================================
 
-asset_t* assets_mesh_t_load_resource_from_file(const char* path, const asset_record_t* record, void* user_data)
+asset_t* mesh_t_load_resource_from_file(const char* path, const asset_record_t* record, void* user_data)
 {
 	// Need to load up data, store in storage (slot array), then return pointer to asset for serialization.
 	return NULL;

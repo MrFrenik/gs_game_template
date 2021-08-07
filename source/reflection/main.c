@@ -5,7 +5,18 @@
 #define GS_META_IMPL
 #include <gs/util/gs_meta.h>
 
-#define META_STR_MAX 512
+#define META_STR_MAX 512 
+
+typedef struct vtable_func_t
+{
+    char name[META_STR_MAX];
+    char func_ptr[META_STR_MAX];
+} vtable_func_t;
+
+typedef struct vtable_t
+{
+    gs_dyn_array(vtable_func_t) funcs;
+} vtable_t;
 
 typedef struct meta_enum_val_t
 {
@@ -31,6 +42,7 @@ typedef struct meta_class_t
 	char name[META_STR_MAX];
 	char base[META_STR_MAX];
 	gs_dyn_array(meta_prop_t) properties;
+    vtable_t vtable;
 } meta_class_t;
 
 typedef struct reflection_data_t
@@ -93,13 +105,13 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
 	gs_token_t t = lex->current_token;
 	
 	// Ignore this field
-	if (gs_token_compare_text(&t, "_ignore"))
+	if (gs_token_compare_text(&t, "ignore"))
 	{
 		// Move to the semicolon
 		gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON);
 	}
 	// Parse 'BASE' tag
-	else if (gs_token_compare_text(&t, "BASE"))
+	else if (gs_token_compare_text(&t, "base"))
 	{
 		// Get opening paren
 		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
@@ -110,8 +122,55 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
 		memcpy(c->base, t.text, t.len);
 
 		// Move to the semicolon
-		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON)) gs_assert(false);
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_RPAREN)) gs_assert(false);
 	}
+    // VTable
+    else if (gs_token_compare_text(&t, "vtable")) 
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Just copy everything in vtable description for now (not individual functions)
+        if (gs_lexer_peek(lex).type != GS_TOKEN_RPAREN) 
+        {
+            /*
+            typedef struct vtable_func_t
+            {
+                char name[META_STR_MAX];
+                char func_ptr[META_STR_MAX];
+            } vtable_func_t;
+            */
+            vtable_func_t f = {0};
+            gs_token_t cur = lex->next_token(lex);
+            t = cur;
+            bool expect_fp = false;
+            while (t.type != GS_TOKEN_RPAREN)
+            {
+                t = lex->next_token(lex); 
+                switch (t.type)
+                {
+                    case GS_TOKEN_IDENTIFIER: 
+                    {
+                        if (expect_fp)
+                        { 
+                            memcpy(f.func_ptr, t.text, t.len); 
+                            f.func_ptr[t.len] = '\0';
+                            gs_dyn_array_push(c->vtable.funcs, f);
+                        }
+                        else
+                        {
+                            memcpy(f.name, t.text, t.len); 
+                            f.name[t.len] = '\0';
+                        }
+                        expect_fp = !expect_fp;
+                    } break;
+
+                    case GS_TOKEN_EQUAL: 
+                    {
+                    } break; 
+                } 
+            } 
+        } 
+    }
 	// Otherwise, it's a field
 	else
 	{
@@ -279,7 +338,7 @@ void parse_file(reflection_data_t* refl, const char* path)
 			{
 				case GS_TOKEN_IDENTIFIER:
 				{
-					if (gs_token_compare_text(&token, "_introspect"))
+					if (gs_token_compare_text(&token, "introspect"))
 					{
 						// Move to ending parens for introspect tag (can parse tags here)
 						gs_lexer_find_next_token_type(&lex, GS_TOKEN_RPAREN);
@@ -408,6 +467,18 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 			const char* base = c->base;
 			uint32_t prop_cnt = gs_dyn_array_size(c->properties);
 
+            // Write out vtable to pass in
+			gs_fprintln(fp, "\t// vtable");	
+            gs_fprintln(fp, "\tgs_meta_vtable_t %s_vt = gs_default_val();", name);	
+            for (uint32_t i = 0; i < gs_dyn_array_size(c->vtable.funcs); ++i)
+            {
+                vtable_func_t* f = &c->vtable.funcs[i];
+                gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(%s)), (void*)%s);", name, f->name, f->func_ptr);	
+            }
+
+            // Formatting
+			gs_fprintln(fp, "");	
+
 			// Write out name as comment
 			gs_fprintln(fp, "\t// %s", name);	
 			gs_fprintln(fp, "\tgs_meta_class_register(meta, (&(gs_meta_class_decl_t) {");	
@@ -451,6 +522,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 					gs_fprintln(fp,  "\t\t.size = %zu * sizeof(gs_meta_property_t),", prop_cnt);	
 				}
 
+				gs_fprintln(fp,  "\t\t.vtable = &%s_vt,", name);	
 				gs_fprintln(fp,  "\t\t.name = gs_to_str(%s),", name);	
 				gs_fprintln(fp,  "\t\t.base = gs_to_str(%s)", base);	
 			}

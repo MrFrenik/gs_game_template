@@ -7,19 +7,20 @@ typedef struct component_data_t
 	void** data;
 } component_data_t;
 
+introspect()
 typedef struct entity_t
 {
-	BASE(object_t);
+	base(object_t)
 
 	uint32_t id;
-	gs_dyn_array(uint32_t) components;	// Component id handle array
+	ignore() gs_dyn_array(uint32_t) components;	// Component id handle array
 } entity_t;
 
 typedef uint32_t entity_handle_t;
 
 typedef struct entity_manager_t
 {
-	BASE(object_t);
+	base(object_t)
 
 	gs_slot_array(entity_t) entities;
 	gs_hash_table(uint64_t, component_data_t*) components;

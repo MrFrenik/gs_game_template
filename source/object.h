@@ -7,7 +7,14 @@ struct meta_t;
 typedef struct object_t
 {
 	uint64_t cls_id;
-} object_t;
+} object_t; 
+
+// Useful typedefs
+typedef void (* obj_ctor_func)(object_t* obj); 
+typedef void (* obj_dtor_func)(object_t* obj); 
+typedef object_t* (* obj_malloc_func)(size_t); 
+typedef gs_result (* obj_serialize_func)(gs_byte_buffer_t*, object_t*); 
+typedef gs_result (* obj_deserialize_func)(gs_byte_buffer_t*, object_t*); 
 
 typedef struct vtable_t
 {
@@ -16,7 +23,7 @@ typedef struct vtable_t
 	object_t* (* malloc)(size_t sz);
 	gs_result (* serialize)(gs_byte_buffer_t* buffer, object_t* obj);
 	gs_result (* deserialize)(gs_byte_buffer_t* buffer, object_t* obj); 
-} vtable_t;
+} vtable_t; 
 
 GS_API_DECL gs_result object_serialize_default(gs_byte_buffer_t* buffer, const object_t* in);
 GS_API_DECL gs_result object_deserialize_default(gs_byte_buffer_t* buffer, object_t* out);
@@ -27,6 +34,25 @@ GS_API_DECL void object_dtor_default(object_t* obj);
 GS_API_DECL object_t* _obj_new_internal(uint64_t id, size_t sz);
 
 GS_API_DECL void obj_dump(struct meta_t* meta, void* obj, gs_meta_class_t* cls);
+
+#define obj_ctor(T, ...)\
+	obj_ctor_T(__VA_ARGS__); 
+
+#define base(T) T _base;
+#define vtable(...) /* __VA_ARGS__ */
+#define ctor(...) //
+#define ignore(...) gs_empty_instruction()
+#define cast(A, B) ((B*)(A))
+
+#define cls_id(OBJ) (CAST(OBJ, object_t)->cls_id)
+#define obj_id(T) gs_hash_str64(gs_to_str(T))
+#define obj_vtable_w_id(ID)\
+	(gs_hash_table_getp(meta_get_instance()->vtables, ID))
+
+#define obj_new(T)\
+	_obj_new_internal(obj_id(T), sizeof(T))
+
+#define introspect(...) gs_empty_instruction()
 
 typedef struct meta_t
 {
@@ -44,21 +70,6 @@ GS_API_DECL void _meta_register_vtable_internal(meta_t* meta, uint64_t* id, vtab
 #define meta_register_vtable(META, T, TABLE)\
 	_meta_register_vtable_internal(META, obj_id(T), TABLE)
 
-#define obj_ctor(T, ...)\
-	obj_ctor_T(__VA_ARGS__);
-
-#define BASE(T) T _base
-#define CAST(A, B) ((B*)(A))
-
-#define cls_id(OBJ) (CAST(OBJ, object_t)->cls_id)
-#define obj_id(T) gs_hash_str64(gs_to_str(T))
-#define obj_vtable_w_id(ID)\
-	(gs_hash_table_getp(meta_get_instance()->vtables, ID))
-
-#define obj_new(T)\
-	_obj_new_internal(obj_id(T), sizeof(T))
-
-#define _introspect(...) gs_empty_instruction()
 
 #ifdef OBJECT_IMPL
 
