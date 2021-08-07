@@ -4,3 +4,4 @@
 *.pdb
 bin/main.obj
 bin/App.exe
+*.swp
