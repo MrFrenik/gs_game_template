@@ -42,7 +42,6 @@ GS_API_DECL void app_init()
 	// Allocate new player entity
 	app->player = entities_allocate(&core->entities);
 	entities_add_component(&core->entities, component_transform_t, app->player, {.transform = gs_vqs_default()});
-    sbuffer = gs_byte_buffer_new();
 
 	// Init camera
     app->camera = gs_camera_perspective(); 

@@ -26,7 +26,7 @@ GS_API_DECL void object_dtor_default(object_t* obj);
 GS_API_DECL void obj_dump(struct meta_t* meta, void* obj, gs_meta_class_t* cls);
 
 // Internal functions
-GS_API_PRIVATE object_t* _obj_new_internal(uint64_t id, size_t sz);
+GS_API_PRIVATE object_t* _obj_new_internal(uint64_t id);
 GS_API_PRIVATE void _obj_ctor_internal(uint64_t id, object_t* obj, void* args);
 GS_API_PRIVATE void _obj_dtor_internal(uint64_t id, object_t* obj);
 GS_API_PRIVATE gs_result _obj_serialize_internal(uint64_t id, gs_byte_buffer_t* buffer, object_t* in);
@@ -41,13 +41,13 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define ignore(...) gs_empty_instruction() 
 
 // Object functions
-#define obj_id(OBJ)                  (cast(OBJ, object_t)->cls_id)
-#define obj_sid(T)                   gs_hash_str64(gs_to_str(T))
-#define obj_vtable_w_id(ID)          (&(gs_hash_table_getp(meta_get_instance()->registry.classes, ID)->vtable)) 
-#define obj_func_w_id(ID, NAME)      gs_meta_func_getp_w_id(&meta_get_instance()->registry, ID, NAME) 
-#define obj_new(T)                   _obj_new_internal(obj_sid(T), sizeof(T)) 
-#define obj_newid(ID, SZ)            _obj_new_internal(ID, SZ)
-#define obj_ctor(T, OBJ, ARGS)       _obj_ctor_internal(obj_id(OBJ), OBJ, ARGS)
+#define obj_id(OBJ)                  (cast(OBJ, object_t)->cls_id)  // Get object class id from instance
+#define obj_sid(T)                   gs_hash_str64(gs_to_str(T))    // Get object class id from static type
+#define obj_vtable_w_id(ID)          (&(gs_hash_table_getp(meta_get_instance()->registry.classes, ID)->vtable)) // Get vtable for class
+#define obj_func_w_id(ID, NAME)      gs_meta_func_getp_w_id(&meta_get_instance()->registry, ID, NAME) // Get function in vtable based on name
+#define obj_new(T)                   _obj_new_internal(obj_sid(T)) // Heap allocate object of type based on type
+#define obj_newid(ID)                _obj_new_internal(ID) // Heap allocate object based on cls id
+#define obj_ctor(T, OBJ, ARGS)       _obj_ctor_internal(obj_id(OBJ), OBJ, ARGS) 
 #define obj_ctor_w_id(ID, OBJ, ARGS) _obj_ctor_internal(ID, OBJ, ARGS)
 #define obj_ctorc(T, N, A)           T N = gs_default_val(); _obj_ctor_internal(obj_sid(T), &N, A)
 #define obj_dtor(OBJ)                _obj_dtor_internal(obj_id(OBJ), OBJ);
@@ -125,9 +125,10 @@ GS_API_DECL void meta_register_gs(meta_t* meta)
 //===== [ Object functions ] ======
 
 // Internal functions
-GS_API_PRIVATE object_t* _obj_new_internal(uint64_t id, size_t sz)
+GS_API_PRIVATE object_t* _obj_new_internal(uint64_t id)
 { 
-    object_t* obj = gs_malloc(sz);
+    const gs_meta_class_t* cls = gs_meta_class_get_w_id(&meta_get_instance()->registry, id);
+    object_t* obj = gs_malloc(cls->size);
     obj->cls_id = id;
     return obj;
 }

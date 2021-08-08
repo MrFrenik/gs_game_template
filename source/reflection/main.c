@@ -524,7 +524,8 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
 				gs_fprintln(fp,  "\t\t.vtable = &%s_vt,", name);	
 				gs_fprintln(fp,  "\t\t.name = gs_to_str(%s),", name);	
-				gs_fprintln(fp,  "\t\t.base = gs_to_str(%s)", base);	
+				gs_fprintln(fp,  "\t\t.base = gs_to_str(%s),", base);	
+                gs_fprintln(fp,  "\t\t.cls_size = sizeof(%s)", name);
 			}
 			gs_fprintln(fp, "\t}));");	
 

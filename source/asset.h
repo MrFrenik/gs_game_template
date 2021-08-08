@@ -295,7 +295,7 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 	record.uuid = gs_platform_uuid_generate(); 
 
 	// Need to construct asset type here using vtable
-    asset_t* asset = obj_newid(id, importer->cls_sz);
+    asset_t* asset = obj_newid(id);
 	gs_assert(asset);
 
 	// Construct raw asset (this will also place into storage and give asset the record's handle)
