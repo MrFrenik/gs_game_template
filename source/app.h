@@ -24,7 +24,7 @@ typedef struct app_t
 GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv);
 GS_API_DECL void app_init();
 GS_API_DECL void app_update();
-GS_API_DECL void app_shutdown();
+GS_API_DECL void app_shutdown(); 
 
 #ifdef APP_IMPL 
 
@@ -42,18 +42,21 @@ GS_API_DECL void app_init()
 	// Allocate new player entity
 	app->player = entities_allocate(&core->entities);
 	entities_add_component(&core->entities, component_transform_t, app->player, {.transform = gs_vqs_default()});
+    sbuffer = gs_byte_buffer_new();
 
 	// Init camera
     app->camera = gs_camera_perspective(); 
 	app->camera.transform.position = gs_v3(0.f, 0.f, 2.f);
 
-    // Try to call some funcs and shit
-    const gs_meta_class_t* cls = gs_meta_class_get(&core->meta.registry, texture_t);
-    ((obj_ctor_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("ctor"))))(NULL);
-    ((obj_dtor_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("dtor"))))(NULL);
-    ((obj_malloc_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("malloc"))))(0);
-    ((obj_serialize_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("serialize"))))(NULL, NULL);
-    ((obj_deserialize_func)(gs_hash_table_get(cls->vtable.funcs, gs_hash_str64("deserialize"))))(NULL, NULL);
+    texture_t* t1 = obj_new(texture_t);
+
+    gs_assert(obj_sid(texture_t) == obj_id(t1));
+
+    // Call functions for objects
+    obj_ctorc(texture_t, t2, NULL);
+    obj_dtor(t1);
+    obj_serialize(NULL, t1);
+    obj_deserialize(NULL, t1);
 }
 
 GS_API_DECL void app_update()

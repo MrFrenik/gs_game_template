@@ -54,7 +54,6 @@ typedef struct texture_t
     vtable(
         .ctor = texture_t_ctor, 
         .dtor = texture_t_dtor, 
-        .malloc = texture_t_malloc, 
         .serialize = texture_t_serialize, 
         .deserialize = texture_t_deserialize
     )
@@ -64,9 +63,8 @@ typedef struct texture_t
 
 } texture_t; 
 
-GS_API_DECL void texture_t_ctor(object_t* obj);
+GS_API_DECL void texture_t_ctor(object_t* obj, void* args);
 GS_API_DECL void texture_t_dtor(object_t* obj);
-GS_API_DECL object_t* texture_t_malloc(size_t sz);
 GS_API_DECL gs_result texture_t_serialize(gs_byte_buffer_t* buffer, object_t* in);
 GS_API_DECL gs_result texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* out); 
 GS_API_DECL bool texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
@@ -179,7 +177,7 @@ GS_API_DECL  const asset_t* _assets_get_w_name_internal(const asset_manager_t* a
 GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_t cid, size_t cls_sz, asset_importer_desc_t* desc);
 
 #define assets_register_importer(ASSETS, T, DESC)\
-	_assets_register_importer_internal(ASSETS, obj_id(T), sizeof(T), DESC);
+	_assets_register_importer_internal(ASSETS, obj_sid(T), sizeof(T), DESC);
 
 #define assets_getp(ASSETS, T, NAME)\
 	_assets_get_w_name_internal(ASSETS, gs_hash_str64(gs_to_str(T)), NAME)
@@ -297,8 +295,7 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 	record.uuid = gs_platform_uuid_generate(); 
 
 	// Need to construct asset type here using vtable
-	vtable_t* vt = obj_vtable_w_id(id); 
-	asset_t* asset = (asset_t*)vt->malloc(importer->cls_sz);
+    asset_t* asset = obj_newid(id, importer->cls_sz);
 	gs_assert(asset);
 
 	// Construct raw asset (this will also place into storage and give asset the record's handle)
@@ -314,7 +311,7 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 		gs_hash_table_insert(importer->uuid2id, gs_hash_str64(UUID_BUF), hndl);
 		gs_hash_table_insert(importer->name2id, gs_hash_str64(record.name), hndl); 
 
-		// Serialize asset to disk
+		// Serialize asset to disk (if requested)
 		// serialize_asset(record.path, asset);
 
 		// Store record in storage
@@ -574,7 +571,7 @@ GS_API_DECL bool texture_t_load_resource_from_file(const char* path, asset_t* ou
 	return true;
 }
 
-GS_API_DECL void texture_t_ctor(object_t* obj)
+GS_API_DECL void texture_t_ctor(object_t* obj, void* args)
 {
     // Nothing for now
     gs_println("CTOR!");

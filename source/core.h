@@ -31,10 +31,7 @@ GS_API_DECL core_t* core_new()
 	meta_set_instance(&core->meta);
 
 	// Register gunslinger meta information
-	meta_register_gs(&core->meta);
-
-	// Register vtables
-	meta_register_vtable(&core->meta, texture_t, (&(vtable_t){0}));
+	meta_register_gs(&core->meta); 
 
 	// Register all generated meta information
 	meta_register_generated(&core->meta);

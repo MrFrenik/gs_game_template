@@ -43,7 +43,7 @@ GS_API_DECL bool _entities_has_component_internal(entity_manager_t* entities, ui
 	} while (0)
 
 #define entities_has_component(ENTITIES, T, HNDL)\
-	(_entities_has_component_internal(ENTITIES, obj_id(T), HNDL))
+	(_entities_has_component_internal(ENTITIES, obj_sid(T), HNDL))
 
 #define entities_add_component(ENTITIES, T, HNDL, ...)\
 	do {\
@@ -52,7 +52,7 @@ GS_API_DECL bool _entities_has_component_internal(entity_manager_t* entities, ui
 		{\
 			/* Get component data */\
 			entity_t* ent = gs_slot_array_getp(ents->entities, HNDL);\
-			uint64_t id = obj_id(T);\
+			uint64_t id = obj_sid(T);\
 			component_data_t* cd = gs_hash_table_get(ents->components, id);\
 			/* Check if exists, return if already exists */\
 			if (!gs_hash_table_exists(cd->lookup, HNDL))\
@@ -67,7 +67,7 @@ GS_API_DECL bool _entities_has_component_internal(entity_manager_t* entities, ui
 	} while (0)
 
 #define entities_get_component(ENTITIES, T, HNDL)\
-	((ENTITIES)->cd = gs_hash_table_get((ENTITIES)->components, obj_id(T)),\
+	((ENTITIES)->cd = gs_hash_table_get((ENTITIES)->components, obj_sid(T)),\
 	 gs_slot_array_getp(*((gs_slot_array(T)*)((ENTITIES)->cd->data)), gs_hash_table_get(((ENTITIES)->cd->lookup), HNDL))) 
 
 #ifdef ENTITY_IMPL
