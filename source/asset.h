@@ -36,6 +36,7 @@ typedef struct asset_t
 
 } asset_t;
 
+introspect()
 typedef struct mesh_t 
 {
 	base(asset_t)
@@ -68,6 +69,7 @@ GS_API_DECL gs_result texture_t_serialize(gs_byte_buffer_t* buffer, object_t* in
 GS_API_DECL gs_result texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* out); 
 GS_API_DECL bool texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
 
+introspect()
 typedef struct font_t
 {
 	base(asset_t)
@@ -89,17 +91,13 @@ typedef struct audio_source_t
 
 GS_API_DECL bool audio_source_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
 
+introspect()
 typedef struct material_t
 {
 	base(asset_t)
 
     // VTable functions
     vtable(
-        .ctor = material_t_ctor,
-        .dtor = material_t_dtor,
-        .malloc = material_t_malloc,
-        .serialize = material_t_serialize,
-        .deserialize = material_t_deserialize 
     )
 
 	// Fields
@@ -125,6 +123,7 @@ typedef struct material_instance_t
 } material_instance_t;
 */
 
+introspect()
 typedef struct pipeline_t
 {
 	base(asset_t)
@@ -242,9 +241,7 @@ GS_API_DECL const asset_t* _assets_get_w_name_internal(const asset_manager_t* am
 	}
 
 	uint32_t rhndl = gs_hash_table_get(importer->name2id, hash);
-    gs_println("handle: %zu", rhndl);
 	const asset_record_t* record = gs_slot_array_getp(importer->records, rhndl);
-    gs_println("record name: %s", record->name);
 	gs_assert(record);
 
 	const asset_t* asset = gs_slot_array_get(importer->assets, record->hndl);
@@ -320,10 +317,6 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 		// Insert into data array
 		uint32_t hndl = gs_slot_array_insert(importer->assets, asset);
 
-        gs_println("record: %s, hndl: %zu", record.name, hndl);
-
-        gs_println("records: %zu", gs_slot_array_size(importer->assets));
-
 		// Set up tables
 		gs_transient_buffer(UUID_BUF, 34);
 		gs_platform_uuid_to_string(UUID_BUF, &record.uuid);
@@ -343,7 +336,6 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 		asset->record_hndl = rhndl;
 	}
 }
-
 
 /*
 GS_API_DECL gs_result assets_serialize_asset(const char* path, const asset_t* in)
@@ -503,6 +495,7 @@ GS_API_DECL void assets_init(asset_manager_t* am, const char* path)
 
     // Recursive through directory structure for assets
 	asset_recurse_dir(path, dir);
+
 	// Close dir
 	closedir(dir);
 }
@@ -699,10 +692,8 @@ GS_API_DECL gs_result texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* 
 
 GS_API_DECL bool audio_source_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
 { 
-    gs_println("HERE: %s", path);
     audio_source_t* audio = (audio_source_t*)out;  
-    audio->audio.hndl = gs_audio_load_from_file(path); 
-	return true;
+	return gs_asset_audio_load_from_file(path, &audio->audio);
 }
 
 //=======[ Font ]=====================================================================
@@ -710,7 +701,8 @@ GS_API_DECL bool audio_source_t_load_resource_from_file(const char* path, asset_
 GS_API_DECL bool font_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
 {
 	// Need to load up data, store in storage (slot array), then return pointer to asset for serialization.
-	return false;
+	font_t* font = (font_t*)out;
+	return gs_asset_font_load_from_file(path, &font->font, user_data ? *((uint32_t*)user_data) : 12);
 }
 
 //=======[ Mesh ]=====================================================================
@@ -718,7 +710,9 @@ GS_API_DECL bool font_t_load_resource_from_file(const char* path, asset_t* out, 
 GS_API_DECL bool mesh_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
 {
 	// Need to load up data, store in storage (slot array), then return pointer to asset for serialization.
-	return false;
+	mesh_t* mesh = (mesh_t*)out;
+	mesh->mesh = gs_gfxt_mesh_load_from_file(path, user_data);
+	return true;
 }
 
 #endif // ASSET_IMPL
