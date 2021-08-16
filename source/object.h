@@ -138,6 +138,9 @@ GS_API_PRIVATE void _obj_ctor_internal(uint64_t id, object_t* obj, void* args)
     // Set id of object first
     obj->cls_id = id;
 
+    // Need to verify, if debug enabled, that id is valid first.
+    gs_assert(gs_meta_class_exists(&meta_get_instance()->registry, id));
+
     // If has ctor, then call
     gs_if(obj_ctor_func* f = obj_func_w_id(id, ctor), f != NULL, 
     {
