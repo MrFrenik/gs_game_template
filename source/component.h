@@ -37,6 +37,6 @@ typedef struct component_renderable_t
 
     // Fields 
     uint32_t renderable_id;
-} component_renderable_t;
+} component_renderable_t; 
 
 #endif // COMPONENT_H
