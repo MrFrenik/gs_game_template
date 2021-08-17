@@ -15,7 +15,10 @@
 #include <gs/util/gs_meta.h>
 
 #define GS_PHYSICS_IMPL
-#include <gs/util/gs_physics.h>
+#include <gs/util/gs_physics.h> 
+
+#define GS_MICROUI_IMPL
+#include "external/microui/gs_microui.h"
 
 #define OBJECT_IMPL
 #include "object.h"

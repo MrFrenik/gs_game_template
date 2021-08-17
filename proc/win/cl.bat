@@ -19,15 +19,15 @@ set src_main=..\source\main.c
 
 rem OS Libraries
 set os_libs= opengl32.lib kernel32.lib user32.lib ^
-shell32.lib vcruntime.lib msvcrt.lib gdi32.lib Winmm.lib Advapi32.lib
+shell32.lib vcruntime.lib msvcrt.lib gdi32.lib Winmm.lib Advapi32.lib 
 
 rem Link options
-set l_options=/EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib
+set l_options=/EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib 
 
 rem Compile Reflection
 cl /w /MP -Zi /DEBUG:FULL /Fe%refl_name%.exe %src_refl_main% %inc% %refl_inc% ^
 /EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:LIBCMT ^
-%os_libs%
+%os_libs% 
 
 rem Run Reflection
 %refl_name%.exe "../source/" "../source/reflection/"
