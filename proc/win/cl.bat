@@ -33,13 +33,13 @@ rem Run Reflection
 %refl_name%.exe "../source/" "../source/reflection/"
 
 rem Compile Release
-rem cl /MP /FS /Ox /W0 /Fe%name%.exe %src_main% %inc% ^
-rem /EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:LIBCMT ^
-rem %os_libs%
-
-rem Compile Debug
-cl /w /MP -Zi /DEBUG:FULL /Fe%name%.exe %src_main% %inc% ^
+cl /MP /FS /Ox /W0 /Fe%name%.exe %src_main% %inc% ^
 /EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:LIBCMT ^
 %os_libs%
+
+rem Compile Debug
+rem cl /w /MP -Zi /DEBUG:FULL /Fe%name%.exe %src_main% %inc% ^
+rem /EHsc /link /SUBSYSTEM:CONSOLE /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:LIBCMT ^
+rem %os_libs%
 
 popd

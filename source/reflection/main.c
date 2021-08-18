@@ -5,7 +5,7 @@
 #define GS_META_IMPL
 #include <gs/util/gs_meta.h>
 
-#define META_STR_MAX 512 
+#define META_STR_MAX 1024 
 
 typedef struct vtable_func_t
 {
