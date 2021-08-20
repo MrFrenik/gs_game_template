@@ -5,3 +5,9 @@
 bin/main.obj
 bin/App.exe
 *.swp
+.vs/gs_game_template/v15/.suo
+.vs/gs_game_template/v15/Browse.VC.db
+.vs/ProjectSettings.json
+.vs/slnx.sqlite
+.vs/VSWorkspaceState.json
+source/reflection/generated.h

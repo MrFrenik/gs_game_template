@@ -1,6 +1,7 @@
 
 #ifndef APP_H
 #define APP_H
+
 /* 
  *  Main application interface
  */ 
@@ -34,6 +35,7 @@ const char* qb_f_src =
 pipeline_t g_pip;
 material_t g_mat;
 quad_batch_t g_qb;
+quad_batch_t g_qb2;
 
 typedef struct physics_component_t
 {
@@ -69,6 +71,8 @@ typedef struct app_t
     gs_rand             rand;
     physics_component_t physics;
     gs_asset_texture_t  pix_tex;
+    float               amplitude;
+    float               period;
     gs_vqs xform;
 } app_t; 
 
@@ -84,8 +88,8 @@ GS_API_DECL void app_update_transform(physics_component_t* physics, gs_vqs* xfor
 
 #define WINDOW_WIDTH  1920
 #define WINDOW_HEIGHT 1080
-#define RT_WIDTH  WINDOW_WIDTH / 2
-#define RT_HEIGHT WINDOW_HEIGHT / 2 
+#define RT_WIDTH  WINDOW_WIDTH
+#define RT_HEIGHT WINDOW_HEIGHT 
 
 // Shaders
 #if (defined GS_PLATFORM_WEB || defined GS_PLATFORM_ANDROID)
@@ -160,8 +164,8 @@ GS_GL_VERSION_STR
 "  else if (lum < u_ranges.y) frag_color.rgb = u_palette1;\n" 
 "  else frag_color.rgb = u_palette2;\n" 
 "  frag_color.a = a;\n" 
-"  // frag_color.rgb = frag_color.rgb * vec3(1.0 - sobel.rgb);\n" 
-"  frag_color = texture(u_tex, final_uv);\n"  // Will have to upsample this 
+"  frag_color.rgb = frag_color.rgb * vec3(1.0 - sobel.rgb);\n" 
+"  // frag_color = texture(u_tex, final_uv);\n"  // Will have to upsample this 
 "}\n";
 
 // Need a few things: 
@@ -379,6 +383,7 @@ GS_API_DECL void app_init()
 
     // Init quad batches
     quad_batch_init(&g_qb, 1);
+    quad_batch_init(&g_qb2, 1);
 }
 
 typedef struct mesh_vert_t {
@@ -745,24 +750,25 @@ GS_API_DECL void app_update()
     // Process input (closing window) 
     if (gs_platform_key_pressed(GS_KEYCODE_ESC)) gs_engine_quit(); 
 
-    // Get necessary data for drawing
-    gsi_render_pass_submit(gsi, cb, gs_color(10, 10, 10, 255)); 
-
-    static float px = 0.f, py = 0.f, pz = 0.f; 
-    if (gs_platform_key_down(GS_KEYCODE_W)) py -= 10.f;
-    if (gs_platform_key_down(GS_KEYCODE_S)) py += 10.f;
-    if (gs_platform_key_down(GS_KEYCODE_A)) px -= 10.f;
-    if (gs_platform_key_down(GS_KEYCODE_D)) px += 10.f; 
-
 	gs_vec2 hws = gs_vec2_scale(ws, 0.5f);
-	gs_camera_t c = gs_camera_default();
-	c.transform.position = gs_vec3_add(c.transform.position, gs_v3(px, py, -1.f)); 
-
+	gs_camera_t c = gs_camera_default(); 
+    
     static float os = 1.f;
     if (gs_platform_key_down(GS_KEYCODE_Q)) os -= 0.1f;
     if (gs_platform_key_down(GS_KEYCODE_E)) os += 0.1f;
     os = gs_clamp(os, -10000.f, 10000.f);
     c.ortho_scale = os;
+
+    const gs_vec2 pixel_step = gs_v2(1.f / (float)RT_WIDTH, 1.f / (float)RT_HEIGHT);
+
+    static float px = 0.f, py = 0.f, pz = 0.f; 
+    if (gs_platform_key_down(GS_KEYCODE_W)) py -= (pixel_step.y * 3000.f * c.ortho_scale);
+    if (gs_platform_key_down(GS_KEYCODE_S)) py += (pixel_step.y * 3000.f * c.ortho_scale);
+    if (gs_platform_key_down(GS_KEYCODE_A)) px -= (pixel_step.x * 3000.f * c.ortho_scale);
+    if (gs_platform_key_down(GS_KEYCODE_D)) px += (pixel_step.x * 3000.f * c.ortho_scale); 
+
+	c.transform.position = gs_vec3_add(c.transform.position, gs_v3(px, py, -1.f)); 
+
 
 	f32 l = -ws.x * 0.5f * c.ortho_scale; 
 	f32 r = ws.x * 0.5f * c.ortho_scale;
@@ -786,6 +792,75 @@ GS_API_DECL void app_update()
     mp = gs_vec2_add(mp, gs_v2(c.transform.position.x, c.transform.position.y));
     gs_vec2 cmp = iso_to_cart(mp);   
 
+    static bool did = false;
+    if (!did)
+    {
+        did = true;
+
+        quad_batch_begin(&g_qb2); 
+        {
+            gs_vec2 d = gs_v2(100.f, 64.f);     // So this is actual dimension of the texture in screen space.
+            const float hw = d.x * 0.5f;
+            const float hh = d.y * 0.5f;
+            const float bias = 15.f;
+            static float t = 0.f;
+            t += 0.001f;
+            static float max = -FLT_MIN;
+            static float min = FLT_MAX;
+            static float vmin = FLT_MAX;
+            static float vmax = -FLT_MAX;
+            const int32_t td = 350;
+            for (int32_t i = -td / 2 - td; i < td / 2 - td; ++i)
+            {
+                for (int32_t j = -td / 2; j < td / 2; ++j)
+                { 
+                    // Height (sin wav) 
+                    float sx = (float)j / (float)50.f;
+                    float sy = (float)i / (float)50.f; 
+                    // const float z = 200 * sin(t * 20.f * sqrt(sx*sx + sy*sy));
+                    // const float z = 10 * sin(j * t) * cos(i * t);
+                    //const float per = (sin(t * app->period) * 0.5f + 1.5f) * 0.5f;
+                    const float per = (t * app->period);
+                    const float z = 800 * gs_perlin2(((float)j + per) / 16.f, ((float)i + per) / 16.f);
+                    if (z < min) min = z; 
+                    if (z > max) max = z;
+
+                    // Cartesian coordinates
+                    const float x = (float)i * VOXEL_SIZE;
+                    const float y = (float)j * VOXEL_SIZE;
+
+                    // Iso coordinates
+                    const float cx = (x - y);
+                    const float cy = (y + x) * 0.5f + z;
+
+                    // Iso depth
+                    const float depth = cy - z;
+
+                    // Final isometric position
+                    gs_vec2 p = gs_v2(cx, cy);
+
+                    // Get cartesian coordinate back from iso (takes height into account)
+                    gs_vec2 cp = iso_to_cart(p);
+
+                    // Determine color based on height (palettes)
+                    float v = gs_map_range(min, max, 0.f, 1.f, z);
+                    if (v > vmax) vmax = v;
+                    if (v < vmin) vmin = v;
+                    gs_color_t hc = z < 0.8f ? GS_COLOR_GREEN : gs_color(10, 50, 100, 255);
+
+                    // Check whether or not projected cartesian mouse is over a cartesian tile (this doesn't account for overlapping tiles)
+                    gs_color_t c = (cmp.x >= cp.x && cmp.x <= cp.x + VOXEL_SIZE &&
+                                    cmp.y >= cp.y && cmp.y <= cp.y + VOXEL_SIZE) ? GS_COLOR_RED : hc;
+
+                    // gsi_rectvd(gsi, gs_v2(x, y), gs_v2(VOXEL_SIZE, VOXEL_SIZE), gs_v2s(0.f), gs_v2s(1.f), c, GS_GRAPHICS_PRIMITIVE_LINES); 
+
+                    quad_batch_add(&g_qb2, &p, &d, &(gs_vec4){0.f, 0.f, 1.f, 1.f}, &c, depth);
+                }
+            } 
+        }
+        quad_batch_end(&g_qb2, cb);
+    }
+
     quad_batch_begin(&g_qb); 
     {
         gs_vec2 d = gs_v2(100.f, 64.f);     // So this is actual dimension of the texture in screen space.
@@ -798,7 +873,9 @@ GS_API_DECL void app_update()
         static float min = FLT_MAX;
         static float vmin = FLT_MAX;
         static float vmax = -FLT_MAX;
-        const int32_t td = 320;
+        const int32_t td = 32; 
+
+        // Try to generate a 3d voxel chunk. Need chunk/region/world tile definitions set up for this.
         for (int32_t i = -td / 2; i < td / 2; ++i)
         {
             for (int32_t j = -td / 2; j < td / 2; ++j)
@@ -808,8 +885,9 @@ GS_API_DECL void app_update()
                 float sy = (float)i / (float)50.f; 
                 // const float z = 200 * sin(t * 20.f * sqrt(sx*sx + sy*sy));
                 // const float z = 10 * sin(j * t) * cos(i * t);
-                const float per = (sin(t * 10.f) * 0.5f + 1.5f) * 0.5f;
-                const float z = 1000 * gs_perlin2(((float)j + t) / 16.f * per, ((float)i + t) / 16.f * per);
+                //const float per = (sin(t * app->period) * 0.5f + 1.5f) * 0.5f;
+                const float per = (t * app->period);
+                const float z = app->amplitude * gs_perlin2(((float)j + per) / 16.f, ((float)i + per) / 16.f);
                 if (z < min) min = z; 
                 if (z > max) max = z;
 
@@ -850,40 +928,86 @@ GS_API_DECL void app_update()
 
     gsi_rectvd(gsi, cmp, gs_v2(5.f, 5.f), gs_v2s(0.f), gs_v2s(1.f), GS_COLOR_GREEN, GS_GRAPHICS_PRIMITIVE_TRIANGLES);
 
-    // Bind default render pass, no clear 
-	gs_renderpass pass = gs_default_val();
-	gs_graphics_begin_render_pass(cb, pass);
-    gs_graphics_set_viewport(cb, 0, 0, (int32_t)fb.x, (int32_t)fb.y);
+	gs_graphics_clear_desc_t  fb_clear = (gs_graphics_clear_desc_t){
+        .actions = (gs_graphics_clear_action_t[]) {
+            {.color = {10.f / 255.f, 10.f / 255.f, 10.f / 255.f, 255.f}}
+        } 
+    };
 
-	gs_graphics_clear_action_t action = gs_default_val();
-	action.color[0] = 10.f / 255.f; 
-	action.color[1] = 10.f / 255.f; 
-	action.color[2] = 10.f / 255.f; 
-	action.color[3] = 255.f / 255.f; 
-	gs_graphics_clear_desc_t clear = gs_default_val();
-	clear.actions = &action;
-	// gs_graphics_clear(cb, &clear);
+    gs_graphics_begin_render_pass(cb, app->rp);
+    {
+        gs_graphics_set_viewport(cb, 0, 0, RT_WIDTH, RT_HEIGHT);
+        gs_graphics_clear(cb, &fb_clear);
 
-    // Crashing here, will find out later.
-    // Set material uniform data, then bind
-    gs_gfxt_material_set_uniform(&g_mat.material, "u_mvp", &mvp); 
-    gs_gfxt_material_set_uniform(&g_mat.material, "u_tex", &app->pix_tex.hndl); 
-    gs_gfxt_material_bind(cb, &g_mat.material);
-    gs_gfxt_material_bind_uniforms(cb, &g_mat.material);
+        // Set material uniform data, then bind
+        gs_gfxt_material_set_uniform(&g_mat.material, "u_mvp", &mvp); 
+        gs_gfxt_material_set_uniform(&g_mat.material, "u_tex", &app->pix_tex.hndl); 
+        gs_gfxt_material_bind(cb, &g_mat.material);
+        gs_gfxt_material_bind_uniforms(cb, &g_mat.material);
 
-    gs_graphics_bind_vertex_buffer_desc_t vbuffer = {0};
-    gs_graphics_bind_index_buffer_desc_t ibuffer = {0};
-    vbuffer.buffer = g_qb.vbo;
-    ibuffer.buffer = g_qb.ibo;
+        gs_graphics_bind_vertex_buffer_desc_t vbuffer = {0};
+        gs_graphics_bind_index_buffer_desc_t ibuffer = {0};
+        vbuffer.buffer = g_qb.vbo;
+        ibuffer.buffer = g_qb.ibo;
 
-    // Draw the quad batch mesh
-    gs_graphics_bind_desc_t binds = {0};
-    binds.vertex_buffers.desc = &vbuffer;
-    binds.index_buffers.desc = &ibuffer;
-    gs_graphics_apply_bindings(cb, &binds);
-    gs_graphics_draw_desc_t draw = {0};
-    draw.start = 0; draw.count = g_qb.count;
-    gs_graphics_draw(cb, &draw);
+        // Draw qb2
+        {
+            gs_graphics_bind_desc_t binds = (gs_graphics_bind_desc_t){
+                .vertex_buffers = {.desc = &(gs_graphics_bind_vertex_buffer_desc_t){.buffer = g_qb2.vbo}},
+                .index_buffers = {.desc = &(gs_graphics_bind_index_buffer_desc_t){.buffer = g_qb2.ibo}}
+            }; 
+            gs_graphics_apply_bindings(cb, &binds);
+            gs_graphics_draw(cb, &(gs_graphics_draw_desc_t){.start = 0, .count = g_qb2.count});
+        }
+
+        // Draw qb1
+        {
+            gs_graphics_bind_desc_t binds = (gs_graphics_bind_desc_t){
+                .vertex_buffers = {.desc = &(gs_graphics_bind_vertex_buffer_desc_t){.buffer = g_qb.vbo}},
+                .index_buffers = {.desc = &(gs_graphics_bind_index_buffer_desc_t){.buffer = g_qb.ibo}}
+            }; 
+            gs_graphics_apply_bindings(cb, &binds);
+            gs_graphics_draw(cb, &(gs_graphics_draw_desc_t){.start = 0, .count = g_qb.count});
+        }
+    } 
+    gs_graphics_end_render_pass(cb);
+
+    // Backbuffer pass
+    gs_graphics_begin_render_pass(cb, GS_GRAPHICS_RENDER_PASS_DEFAULT); 
+    {
+        gs_graphics_set_viewport(cb, 0, 0, (int32_t)fb.x, (int32_t)fb.y); 
+        gs_graphics_clear(cb, &fb_clear);
+
+        // Set uniforms for material
+        gs_gfxt_material_set_uniform(&app->bb_mat, "u_tex", &app->rt);
+        gs_gfxt_material_set_uniform(&app->bb_mat, "u_tex_size", &(gs_vec2){RT_WIDTH, RT_HEIGHT});
+        gs_gfxt_material_set_uniform(&app->bb_mat, "u_screen_size", &fb);
+        gs_gfxt_material_set_uniform(&app->bb_mat, "u_palette0", &app->palettes[0]);
+        gs_gfxt_material_set_uniform(&app->bb_mat, "u_palette1", &app->palettes[1]);
+        gs_gfxt_material_set_uniform(&app->bb_mat, "u_palette2", &app->palettes[2]);
+        gs_gfxt_material_set_uniform(&app->bb_mat, "u_ranges", &app->ranges);
+
+        gs_gfxt_material_bind(cb, &app->bb_mat);
+        gs_gfxt_material_bind_uniforms(cb, &app->bb_mat); 
+
+        // Bind unit quad
+        gs_graphics_bind_desc_t binds = {
+            .vertex_buffers = {.desc = &(gs_graphics_bind_vertex_buffer_desc_t){.buffer = app->vbo}},
+            .index_buffers = {.desc = &(gs_graphics_bind_index_buffer_desc_t){.buffer = app->ibo}},
+        };
+        gs_graphics_apply_bindings(cb, &binds); 
+
+        // Draw
+        gs_graphics_draw(cb, &(gs_graphics_draw_desc_t){.start = 0, .count = 6});
+
+        // UI
+        gs_mu_new_frame(gmu); 
+        mu_begin(&gmu->mu);
+        camera_gui(&gmu->mu, &app->camera);
+        mu_end(&gmu->mu);
+        gs_mu_render(gmu, cb); 
+    } 
+    gs_graphics_end_render_pass(cb); 
 
     gsi_render_pass_submit_ex(gsi, cb, NULL); 
     gs_graphics_submit_command_buffer(cb); 
@@ -914,14 +1038,20 @@ void camera_gui(mu_Context* ctx, gs_camera_t* cam)
 
     if (mu_begin_window(ctx, "Properties", mu_rect(40, 40, 300, 450)))
     { 
-        if (mu_header_ex(ctx, "Ranges", MU_OPT_EXPANDED)) 
+        if (mu_header_ex(ctx, "Terrain", MU_OPT_EXPANDED)) 
+        {
+            mu_label(ctx, "amplitude:"); mu_slider(ctx, &app->amplitude, 1.f, 5000.f); 
+            mu_label(ctx, "period:"); mu_slider(ctx, &app->period, 1.f, 1000.f); 
+        }
+
+        if (mu_header_ex(ctx, "Ranges", MU_OPT_CLOSED)) 
         {
             gs_vec2* ranges = &app->ranges;
             mu_label(ctx, "low:"); mu_slider(ctx, &ranges->x, 0.f, ranges->y); 
             mu_label(ctx, "high:"); mu_slider(ctx, &ranges->y, ranges->x, 1.f); 
         }
 
-        if (mu_header_ex(ctx, "Palette", MU_OPT_EXPANDED)) 
+        if (mu_header_ex(ctx, "Palette", MU_OPT_CLOSED)) 
         {
             for (uint32_t i = 0; i < 3; ++i)
             {
@@ -934,9 +1064,9 @@ void camera_gui(mu_Context* ctx, gs_camera_t* cam)
             }
         }
         
-        if (mu_header_ex(ctx, "Transform", MU_OPT_EXPANDED)) 
+        if (mu_header_ex(ctx, "Transform", MU_OPT_CLOSED)) 
         { 
-            if (mu_header_ex(ctx, "Position", MU_OPT_EXPANDED)) 
+            if (mu_header_ex(ctx, "Position", MU_OPT_CLOSED)) 
             {
                 float range = 20.f;
                 gs_vec3* p = &cam->transform.position;
@@ -971,7 +1101,7 @@ void camera_gui(mu_Context* ctx, gs_camera_t* cam)
             } 
         }
 
-        if (mu_header_ex(ctx, "Ortho Scale", MU_OPT_EXPANDED)) 
+        if (mu_header_ex(ctx, "Ortho Scale", MU_OPT_CLOSED)) 
         {
             mu_label(ctx, "Ortho:"); mu_slider(ctx, &cam->ortho_scale, 0.1f, 20.f); 
         } 
