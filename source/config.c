@@ -29,6 +29,9 @@
 #define GRAPHICS_IMPL
 #include "graphics.h"
 
+#define WORLD_IMPL
+#include "world.h"
+
 #define COMPONENT_IMPL
 #include "component.h"
 

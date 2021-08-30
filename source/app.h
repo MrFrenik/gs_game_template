@@ -6,6 +6,292 @@
  *  Main application interface
  */ 
 
+/* 
+   // Each voxel is 1x1x1 units in grid space (in pixel space, these are isometric tiles of 32x16, in cartesian space they're 32x32 pixels); 
+
+    #define WORLD_VOXEL_CARTESIAN_WIDTH   32
+    #define WORLD_VOXEL_ISO_WIDTH         32
+    #define WORLD_VOXEL_ISO_HEIGHT        16  
+    #define WORLD_CHUNK_WIDTH             32
+    #define WORLD_CHUNK_HEIGHT            32      // This will mean that each region will need a cubic series of chunks as well (or the region just corresponds to a point in space with currently generated chunks)
+    #define WORLD_CHUNK_DEPTH             32
+
+    // A region holds a group of chunks (I think I'll have a limit to height within a world chunk, very similar to minecraft in that regard)...unless infinite height can be a thing? Seems ridiculous, but might be ridiculous in a good way.
+    // A chunk holds a group of voxels
+
+    typedef enum voxel_type_t
+    {
+        VOXEL_TYPE_AIR = 0x00, 
+        VOXEL_TYPE_GROUND = 0x01  
+    } voxel_type_t;
+
+    // Voxel
+    typedef uint8_t world_voxel_t;
+    
+    // Chunk
+    typedef struct world_chunk_t
+    { 
+        // To make this more efficient, memory wise, should implement an RLE interval tree for the chunk data
+        world_voxel_t voxels[WORLD_CHUNK_WIDTH * WORLD_CHUNK_HEIGHT * WORLD_CHUNK_DEPTH]; // At 32 voxels per dimension, each chunk = 32^3 = 32.7k voxels      
+    } world_chunk_t; 
+
+    // Region
+    typedef struct world_region_t
+    { 
+        // Hash id of world position to chunk (use fast, custom hash for this, probably bound the entire world to be positive positions only)
+        gs_hash_table(uint64_t, world_chunk_t) chunks;  // Active world chunks (will be paged in)
+    } world_region_t;
+
+    // The world is comprised of regions
+    // There could potentially be entire sections of a region that is empty space, so need to account for that somehow to save memory 
+    typedef struct world_t
+    {
+        gs_hash_table(uint64_t, world_region_t) regions;    // Active world regions (will be paged in)
+    } world_t;
+
+
+Solomon: 
+    - Overview: Diablo + Dwarf Fortress + Starcraft + Skyrim
+    - Set in a post-apoc time, where advanced technology exists but is treated differently by various groups
+        (think Warhammer or Dune), where the corrupted King Solomon rules the land and controls demons, beasts, 
+        groups to do his bidding. His demonic ring gives him ultimate power.
+    - Magic, technology, demons, spiritual forces, fantastical elements all exist in this world
+    - Art: 2.5d, isometric, hand drawn. Gorey but stylistic.
+    - Terrain: 
+        - Procedurally generated worlds, consisting of biomes, caves, oceans, rivers, lakes, forests, mountains, 
+            volcanoes, swamps
+        - Player creates a world to live in and selects various traits for that world, including what entity types are allowed, 
+            what factions can exists, the atmosphere for the world, the closeness to the sun, etc. 
+    - Town-Building: 
+        - Like DF, player will be responsible for managing a starting town. This town will have inhabitants with their own 
+            traits, skills, desires, and abilities. The town will grow, the player will assign tasks and build the town from 
+            scratch. 
+        - As your town grows, it will attract new inhabitants. 
+        - Towns-people will have relationships with each other, will build heirarchies (such as electing a mayor), and will 
+            try to maintain whatever order they can. The player can influence this and give orders, but certain things 
+            will be out of the player's control and left up to how well the town is managed.  
+    - Roguelike: 
+        - Adventure and exploration of the overworld is a large part of Solomon. The player must venture out into the world
+            to secure new resources, upgrades, technology, skills, equipment for the town as well as partaking in randomly 
+            generated side quests. All quests feed into the final story and goal of defeating Solomon. Defeating Solomon 
+            will be a difficult almost impossible task. Most will fail. 
+        - Players start with a 'hero', which has heightened attributes, traits, and abilities as well as better starting 
+            equipment.
+        - Players can take their hero (or multiple heroes) into overworld to explore caves, dungeons, raid other towns, 
+            and recruit others into their party for play or join their town.
+        - While the heroes are in the overworld, their towns are still being built.
+    - Building: 
+        - The entire world can be deconstructed and built to suit the player and other AI living in it. This means you 
+            can build your town in a large, overgrown tree in a forest or in the side of a mountain. You could have a
+            civilization build an underwater city that can only be accessed via a secret tunnel through an underground
+            cave.
+    - Meta game: 
+        - Like other modern roguelikes, accessing new features/upgrades is a feature for each run to entice replayability, so   
+            even complete failure reaps rewards.
+    - Overworld: 
+        - The overworld is dangerous. Full of monsters, raiders, dungeons, natural wonders and disasters. Players can 
+            teleport back to their town at any time, assuming they have the correct equipment (either magic scroll
+                or spell).
+        - To save on processing, there are certain areas that will maintain some persistence, but not as much as 
+            a designated town. Towns can be set up in dangerous areas (so evil towns can exist), but the overworld 
+            with certain beasts will have a paired down AI to keep processing low. These beasts will also be 
+            procedurally generated and placed, so they can be kept out of main memory as much as possible. (Only 
+            proximity will keep them alive). 
+    - Time: 
+        - Like other colony-building games, time can be paused or sped up to control building. In Solomon, this is also 
+            available, however time does not flow evenly across the entire world. Therefore the overworld will 
+            behave differently from player controlled zones. In a player controlled world, the player is able to 
+            alter time at will with no cost. However in the overworld, the player can only pause time for a certain amount 
+            of time before this must cool down.
+        - Time dilation isn't for free. Since time behaves differently between the overworld and your towns, there are 
+            certain considerations to be made: 
+                * Heroes can have relationships with towns people. If they age at different rates, this means those 
+                    relationships could be affected and negatively affect the hero or town. 
+    - Multiplayer: 
+        - Players can play with others, either as a team in PvE managing the same colony or their own 
+            or in PvP managing competing towns.  
+        - Each player starts with a hero or can promote an existing town member to a hero. 
+        - Each player is able to dilate time in his own town without affecting other towns. Players can pause time in the 
+            overworld for a set amount of time before this feature needs to cool down.
+        - If a PvP encounter occurs within a player's town boundary, then time acts similar to the overworld. This prevents
+            either player from being able to pause time indefinitely.
+    - Entities: 
+        - All creatures, whether they be beasts, towns people, regardless of race, will be an AI "entity" in Solomon. These 
+            entities all have various components that control how they behave: 
+                * Traits/Attributes: 
+                    - Attributes, such as whether or not an entity fears easily, or how much physical strength they have, 
+                        which feeds into their well-being and how well they can perform certain actions. For instance, 
+                        an entity with a resistance to poison might not get drunk easily.  
+                * Skills: 
+                * Physical Properties: 
+                    - Describes the physical makeup of an entity, such as its skeletal system, what limbs it has, how many eyes, 
+                        what its skin is made of (if applicable).
+                * Equipment: 
+                    - Descibes what equipment this entity has own its person at a time. This includes all physical items that 
+                        can be removed from it. For instance, a live rabbit might not have any equipment, but a rabbit's corpse
+                        will have fur, legs, arms, heart, liver, etc that can be taken.
+                * Actions: 
+                    - Actions are context specfic that generally take the form of entity -> entity, however they can also 
+                        take the form of entity -> world, world -> entity, player -> entity as well. For instance, to 
+                        "use" a firearm on an entity might have several subactions, such as striking with butt of the gun
+                        or firing at it. These actions could also apply to the world as well, such as firing a bullet into 
+                        the side of a mountain to cause a loud sound effect for a diversion.
+    - Story Arc: 
+        - To bind the stories together, the main objective will remain the same: Kill Solmon to bring peace to the world. 
+            However, depending on the world generated and play style preferred, this could either be quick or slow. 
+            Even as the player does things in the background to avoid the main story line, this will always be in action
+            and will change as time progresses. 
+        - The main quest line will have the typical elements that any would: Three acts, a completion arc, with 
+            various required completed sub-quests before completing the final story. 
+        - Due to the persistent nature of the entire world, sub-quests could be completed without the player's knowing. 
+            For instance, if a sub-quest is to kill a particular entity and retrieve a key, if that entity is then 
+            assassinated by a jaded lover, then the story will patch itself so that the quest is updated for the retrieval 
+            of the key. The story can make certain items/entities necessary and indestructive so a viable quest path can always 
+            exist.
+    - Armies: 
+        - Erect and command entire armies from your towns to raid other cities and towns to capture them.
+    - Quests: 
+        - Side quests are important to feel immersed in a world, and this will be no different in Solmon. As you progress
+            through the game, venturing to other cities, towns, continents, to explore and gather resources or raid whole
+            towns to take them over, you will encounter other entities that want you to do things for them. These 
+            quests will be entirely dependent on the procedural generation for that world and will have sub-quests
+            that each take part in their own three-act structure. These side quests could either be connected to the 
+            larger story or could entirely be separate. 
+    - Boss Fights: 
+        - Certain entities will be designated as "bosses", which will be end of certain quest arcs, typically more challenging, 
+            and are either entirely unique instances or special versions of entities with heightened abilities.
+    - Events: 
+        - All events are randomly generated but are controlled by various factors, such as how developed the town is, how 
+            much time a town has been alive (not in terms of overworld but in terms of the town's time). These could include 
+            natural disasters, raids by other AI or players, demonic possessions, corruption, political upheavals, etc.  
+
+
+    What is the end game? I like the idea of having to kill Solomon, but what happens after that? Can you continue to play
+    that world? Does it wrap difficulty like in Diablo? Does your hero now become the ring holder to be destroyed?
+    Could have to beat the game at certain map sizes to unlock different kinds of available content for the game.  
+    Killing Solomon unlocks the ability to travel to other areas, worlds? Possibly unlocks a gateway to hell itself
+    to fight Satan? New bosses unlock? New monsters spawn? The difficulty of the world increases? 
+    
+    The town and your heroes/townspeople are analogous to Diablo's people. Is there a way to bring in your town or 
+    heroes to another player's game? Perhaps a single hero but not the town? What happens if this hero dies in 
+    another player's game? Is that persistent across games? 
+
+    Should there be permanent town death? Or an option to continue your town from a previous save if you want? 
+    This might cheapen the intensity of the game, but there could always be a "hardcore" version to disallow 
+    saves and encourage challenge. There could even be specific unlocks that occur only from the hardcore game mode.  
+
+    Progression: 
+
+        Early Game: 
+            Create world 
+            Create starting townspeople 
+            Create starting hero 
+            Build town 
+            Send hero to overworld 
+            Gather resources, complete quests, kill bosses, raid towns to capture areas
+
+        Mid Game: 
+            Manage any towns under your control
+            Continue to upgrade hero/s, create stronger parties of heros (up to 4? at a time) 
+            Fight harder in game bosses/areas for better resources
+            Stave off any outside/internal attacks and events that could destroy your civ
+            Continue any side quests
+            Continue main story line quests
+
+        End Game: 
+            Complete main story line quests needed to kill Solomon
+            Kill Solomon to gain control over the ring (or not?)
+
+        Meta Game: 
+            After beating Solomon in your world, the meta game begins, opening up new challenges 
+            Portal to a Hell opens in the world, new demons introduced
+            Travel to Hell to challenge Satan himself
+            Control demons to build, as Solomon did himself, now that you have control over the ring 
+            Harder, more challenging quests open up, more unique loot
+
+
+        How does permanent death play into this? How disheartening is it to lose all of your progress? 
+        Can you continue to play in the world? Can you continue with your hero?  
+
+    
+ */
+
+
+ /*
+  *     Use an entity component system for all of this? 
+  *
+  *     Entity -> Traits, Abilities, Skills, Physical Characteristics, Equipment, Actions
+  *
+  *     Need a way to make large battles SCALE without destroying someone's computer.
+  *
+  *     How can I set this up to be scalable and moddable? How can I design new traits/abilities/actions 
+  *
+  *     Example: 
+  *     Action:
+  *         Fireball (a spell)
+  *             - Spawn an entity at a given position with a given velocity (transform/physics/animation components) 
+  *             - Entity has certain physical properties that determine it to be a "fireball"
+  *
+  *     Could add each trait/skill/characteristic/action as a component?
+  *
+  *     Fireball: 
+  *         Transform Component
+  *         Physics Kinematic Component
+  *         2D Animation Component (this won't have a "renderable", since it will all be quad batched)
+  *
+  *         Not sure about these (All entities could have these): 
+  *             Physical Characteristics Component      // List of physical characteristics
+  *             Traits Component                        // List of traits
+  *             Skills Component                        // List of skills
+  *             Actions Component                       // List of possible actions
+  *             Equipment Component                     // List of all equipment
+  *             Memory Component  
+  *
+  *             Certain entities might have certain components and might not.
+  *
+  *    Action: ingest - what does it mean to actually DO an action? Ingesting some kind of item should do various things,
+  *    depending on the material makeup of that item.
+  *
+  *     // Maybe make an entity component system for ingestion?
+  *     void Ingest(entity ent, entity ent)
+  *     {
+  *         // Get physical properties of consuming entity, then do various checks.
+  *     }
+  *
+  *     // Then action of "ingesting" something gives you an "ingesting" component to put you in that system?
+  *     // Seems really over-complicated.
+  *
+  *     What can I work on in the meantime? 
+  *
+  *     - World generation: 
+  *         Regions -> Chunks -> Voxels
+  *         Biomes
+  *         Rivers
+  *         Volcanos
+  *         Oceans
+  *         Forests 
+  *
+  *         When zoomed out of a region, that region is updating at an LOD resolution scale: 
+  *             - For instance, just like in reality, you don't know the specific events down to a granular level
+  *                 and how it affects each and every person, what happens to their lives, etc.
+  *                 You only know of large events and how they affect the region at a meta level.
+  *             - When a player begins to actively invest in a region, they gain connection to it and 
+  *                 therefore events will become more actively updated.
+  *             - Regions the player has full control over will be actively updated at a full granular level.
+  *         
+  *         Need to generate a map of continents with biomes. Again, NO idea how to do this. Want seeds for various 
+  *         things, such as biome generation, temperature, etc. 
+  *
+  *         Should I use 3D perlin noise to do terrain? Or 2D perlin then go through and add caves after the fact?
+  *         Generate terrain with perlin/simplex noise.
+  */
+
+gs_force_inline
+void fb_cb(void* win, int32_t width, int32_t height)
+{
+    gs_println("w: %d, h: %d", width, height);
+}
+
 const char* qb_v_src = 
 "#version 330 core\n"
 "precision mediump float;\n" 
@@ -36,6 +322,7 @@ pipeline_t g_pip;
 material_t g_mat;
 quad_batch_t g_qb;
 quad_batch_t g_qb2;
+quad_batch_t g_qb3;
 
 typedef struct physics_component_t
 {
@@ -88,8 +375,8 @@ GS_API_DECL void app_update_transform(physics_component_t* physics, gs_vqs* xfor
 
 #define WINDOW_WIDTH  1920
 #define WINDOW_HEIGHT 1080
-#define RT_WIDTH  WINDOW_WIDTH
-#define RT_HEIGHT WINDOW_HEIGHT 
+#define RT_WIDTH  WINDOW_WIDTH  
+#define RT_HEIGHT WINDOW_HEIGHT
 
 // Shaders
 #if (defined GS_PLATFORM_WEB || defined GS_PLATFORM_ANDROID)
@@ -165,15 +452,21 @@ GS_GL_VERSION_STR
 "  else frag_color.rgb = u_palette2;\n" 
 "  frag_color.a = a;\n" 
 "  frag_color.rgb = frag_color.rgb * vec3(1.0 - sobel.rgb);\n" 
-"  // frag_color = texture(u_tex, final_uv);\n"  // Will have to upsample this 
+"  frag_color = texture(u_tex, final_uv);\n"  // Will have to upsample this 
 "}\n";
 
 // Need a few things: 
     // offscreen pipeline for rendering simple objects (could honestly just use GSI for rendering a cube...)
     // onscreen pipeline for rendering default quad texture to screen 
+    //
 
 GS_API_DECL void app_init()
 {
+    for (int32_t b = 0; b < 256; ++b)
+    {
+        gs_println(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(b));
+    }
+
     app_t* app = gs_engine_user_data(app_t); 
 
 	// Initialize core
@@ -181,6 +474,8 @@ GS_API_DECL void app_init()
 
     // Seed rand
     app->rand = gs_rand_seed(gs_hash_str64("Gunslinger"));
+
+    gs_platform_set_framebuffer_resize_callback(gs_platform_main_window(), fb_cb);
 
 	// I want position, uv, color
 	gs_gfxt_mesh_import_options_t options = {
@@ -313,7 +608,7 @@ GS_API_DECL void app_init()
         .mag_filter = GS_GRAPHICS_TEXTURE_FILTER_NEAREST 
     };
 
-	gs_asset_texture_load_from_file("./assets/iso_cube_uv3.png", &app->ship_tex, &tdesc, false, false); 
+	gs_asset_texture_load_from_file("./assets/iso_tiles3.png", &app->ship_tex, &tdesc, false, false); 
     gs_asset_texture_load_from_file("./assets/water.png", &app->pix_tex, &tdesc, false, false);
 
     app->xform = gs_vqs_default();
@@ -383,7 +678,8 @@ GS_API_DECL void app_init()
 
     // Init quad batches
     quad_batch_init(&g_qb, 1);
-    quad_batch_init(&g_qb2, 1);
+    quad_batch_init(&g_qb2, 1); 
+    quad_batch_init(&g_qb3, 1);
 }
 
 typedef struct mesh_vert_t {
@@ -713,16 +1009,6 @@ GS_API_DECL void app_update()
 }
 */
 
-gs_vec2 cart_to_iso(gs_vec2 cart)
-{
-    return gs_v2(cart.x - cart.y, (cart.x + cart.y) * 0.5f);
-};
-
-gs_vec2 iso_to_cart(gs_vec2 iso)
-{
-    return gs_v2((2.f * iso.y + iso.x) * 0.5f, (2.f * iso.y - iso.x) * 0.5f);
-};
-
 bool point_vs_aabb(gs_vec2 p, gs_vec4 aabb)
 {
     return ((p.x >= aabb.x && p.x <= aabb.z) &&
@@ -754,8 +1040,8 @@ GS_API_DECL void app_update()
 	gs_camera_t c = gs_camera_default(); 
     
     static float os = 1.f;
-    if (gs_platform_key_down(GS_KEYCODE_Q)) os -= 0.1f;
-    if (gs_platform_key_down(GS_KEYCODE_E)) os += 0.1f;
+    if (gs_platform_key_down(GS_KEYCODE_Q)) os += 0.05f;
+    if (gs_platform_key_down(GS_KEYCODE_E)) os -= 0.05f;
     os = gs_clamp(os, -10000.f, 10000.f);
     c.ortho_scale = os;
 
@@ -769,6 +1055,7 @@ GS_API_DECL void app_update()
 
 	c.transform.position = gs_vec3_add(c.transform.position, gs_v3(px, py, -1.f)); 
 
+    world_t w = world_generate(gs_hash_str64("Gunslinger"), &g_qb3, &app->core->cb, app->amplitude, gs_v2s(app->period)); 
 
 	f32 l = -ws.x * 0.5f * c.ortho_scale; 
 	f32 r = ws.x * 0.5f * c.ortho_scale;
@@ -778,8 +1065,6 @@ GS_API_DECL void app_update()
 
     // We have our quad batch, should be able to pass things into it now.
 	gs_mat4 mvp = gs_mat4_mul(ortho, gs_camera_get_view(&c)); 
-
-    float VOXEL_SIZE = 50.f; // Voxel size is half of the width of the isometric tile texture. I know. It's confusing.
 
     gsi_camera2D(gsi);
 
@@ -926,7 +1211,7 @@ GS_API_DECL void app_update()
     }
     quad_batch_end(&g_qb, cb);
 
-    gsi_rectvd(gsi, cmp, gs_v2(5.f, 5.f), gs_v2s(0.f), gs_v2s(1.f), GS_COLOR_GREEN, GS_GRAPHICS_PRIMITIVE_TRIANGLES);
+    // gsi_rectvd(gsi, cmp, gs_v2(5.f, 5.f), gs_v2s(0.f), gs_v2s(1.f), GS_COLOR_GREEN, GS_GRAPHICS_PRIMITIVE_TRIANGLES);
 
 	gs_graphics_clear_desc_t  fb_clear = (gs_graphics_clear_desc_t){
         .actions = (gs_graphics_clear_action_t[]) {
@@ -941,7 +1226,7 @@ GS_API_DECL void app_update()
 
         // Set material uniform data, then bind
         gs_gfxt_material_set_uniform(&g_mat.material, "u_mvp", &mvp); 
-        gs_gfxt_material_set_uniform(&g_mat.material, "u_tex", &app->pix_tex.hndl); 
+        gs_gfxt_material_set_uniform(&g_mat.material, "u_tex", &app->ship_tex.hndl); 
         gs_gfxt_material_bind(cb, &g_mat.material);
         gs_gfxt_material_bind_uniforms(cb, &g_mat.material);
 
@@ -950,6 +1235,7 @@ GS_API_DECL void app_update()
         vbuffer.buffer = g_qb.vbo;
         ibuffer.buffer = g_qb.ibo;
 
+        /*
         // Draw qb2
         {
             gs_graphics_bind_desc_t binds = (gs_graphics_bind_desc_t){
@@ -968,6 +1254,17 @@ GS_API_DECL void app_update()
             }; 
             gs_graphics_apply_bindings(cb, &binds);
             gs_graphics_draw(cb, &(gs_graphics_draw_desc_t){.start = 0, .count = g_qb.count});
+        }
+        */
+
+        // Draw qb3
+        {
+            gs_graphics_bind_desc_t binds = (gs_graphics_bind_desc_t){
+                .vertex_buffers = {.desc = &(gs_graphics_bind_vertex_buffer_desc_t){.buffer = g_qb3.vbo}},
+                .index_buffers = {.desc = &(gs_graphics_bind_index_buffer_desc_t){.buffer = g_qb3.ibo}}
+            }; 
+            gs_graphics_apply_bindings(cb, &binds);
+            gs_graphics_draw(cb, &(gs_graphics_draw_desc_t){.start = 0, .count = g_qb3.count});
         }
     } 
     gs_graphics_end_render_pass(cb);
