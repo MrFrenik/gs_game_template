@@ -327,6 +327,12 @@ void parse_file(reflection_data_t* refl, const char* path)
 {
 	gs_println("generating reflection: %s", path);
 
+    if (gs_string_compare_equal(path, "../source/app.h") || 
+		gs_string_compare_equal(path, "../source/world.h"))
+	{
+		return;
+	}
+
 	char* contents = gs_platform_read_file_contents(path, "r", NULL);
 	if (contents)
 	{

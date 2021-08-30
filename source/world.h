@@ -103,6 +103,17 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
     // Create height map for terrain height values (need to contour these values afterwards for shape, then can assign voxels)
     const gs_vec3 so = gs_v3((f32)WORLD_CHUNK_WIDTH / 2.f, (f32)WORLD_CHUNK_HEIGHT / 2.f, (f32)WORLD_CHUNK_DEPTH / 2.f);
 
+	static float t = 0.f;
+	static bool _paused = false;
+	if (!_paused)
+	{
+		t += 0.001f;
+	}
+	if (gs_platform_key_pressed(GS_KEYCODE_P))
+	{
+		_paused = !_paused;
+	}
+
     // Go through each corner for voxel values 
     float min = FLT_MAX;
     float max = FLT_MIN;
@@ -132,7 +143,7 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
                         // Get difference between n and vy
                         const float d = vy - n; 
 
-                        const float r = 24 * (sin(gs_platform_elapsed_time() * 0.0001f) * 0.5f + 0.8f);
+                        const float r = 24 * (sin(t) * 0.5f + 0.8f);
                         // Try a sphere?
                         const float vx = x * VOXEL_SIZE;
                         const float vz = z * VOXEL_SIZE;
@@ -141,18 +152,16 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
                         // If valid, then we'll be on, otherwise off.
                         // Need to map valid corner cases to indices for UVs.
                         // if (d <= 1.f)
-                        if (r - sd >= 0.f)
+                        if (r - sd >= 0.f && d <= 0.5f)
                         // if (d <= 0.5f)
                         { 
                             corners[idx] = 1;
                         } 
 
-                        /*
-                        if (y == 0) 
+                        if (y == 0 || y == 1) 
                         {
-                            corners[idx] = 1;
+                            // corners[idx] = 1;
                         }
-                        */
                     }
                 }
             }
@@ -161,28 +170,6 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
 
 #define SW  224
 #define SH  64
-
-/*
-gs_vec4 uvs[16] = {
-    // First row
-    gs_v4(32.f * 0.f / SW, 32.f * 0.f / SH, 32.f * 1.f / SW, 32.f * 1.f / SH),  // 0x0
-    gs_v4(32.f * 1.f / SW, 32.f * 0.f / SH, 32.f * 2.f / SW, 32.f * 1.f / SH),  // 0x1              
-    gs_v4(32.f * 2.f / SW, 32.f * 0.f / SH, 32.f * 3.f / SW, 32.f * 1.f / SH),  // 0x2
-    gs_v4(32.f * 3.f / SW, 32.f * 0.f / SH, 32.f * 4.f / SW, 32.f * 1.f / SH),  // 0x3
-    gs_v4(32.f * 4.f / SW, 32.f * 0.f / SH, 32.f * 5.f / SW, 32.f * 1.f / SH),  // 0x4 
-    gs_v4(32.f * 5.f / SW, 32.f * 0.f / SH, 32.f * 6.f / SW, 32.f * 1.f / SH),  // 0x5 
-    gs_v4(-1.f, -1.f, -1.f, -1.f),                                              // 0x6 
-    gs_v4(32.f * 6.f / SW, 32.f * 0.f / SH, 32.f * 7.f / SW, 32.f * 1.f / SH),  // 0x7 
-    gs_v4(32.f * 0.f / SW, 32.f * 1.f / SH, 32.f * 1.f / SW, 32.f * 2.f / SH),  // 0x8
-    gs_v4(32.f * 1.f / SW, 32.f * 1.f / SH, 32.f * 2.f / SW, 32.f * 2.f / SH),  // 0x9
-    gs_v4(32.f * 2.f / SW, 32.f * 1.f / SH, 32.f * 3.f / SW, 32.f * 2.f / SH),  // 0x10
-    gs_v4(32.f * 3.f / SW, 32.f * 1.f / SH, 32.f * 4.f / SW, 32.f * 2.f / SH),  // 0x11
-    gs_v4(-1.f, -1.f, -1.f, -1.f),                                              // 0x12
-    gs_v4(32.f * 4.f / SW, 32.f * 1.f / SH, 32.f * 5.f / SW, 32.f * 2.f / SH),  // 0x13
-    gs_v4(32.f * 5.f / SW, 32.f * 1.f / SH, 32.f * 6.f / SW, 32.f * 2.f / SH),  // 0x14
-    gs_v4(32.f * 6.f / SW, 32.f * 1.f / SH, 32.f * 7.f / SW, 32.f * 2.f / SH)   // 0x15
-};
-*/
 
 #define GET_IDX(X, Y, Z)\
     ((X) + (Y) * (WORLD_CHUNK_WIDTH + 1) + (Z) * (WORLD_CHUNK_DEPTH + 1) * (WORLD_CHUNK_HEIGHT + 1))
@@ -257,198 +244,9 @@ gs_vec4 uvs[16] = {
             ((f32)TH * (f32)(R + 1)) / (f32)H\
         };\
     } while (0)
-
                     // Determine uvs based on case 
                     gs_vec4 uvs = gs_v4s(-1.f);
 
-                    /*
-                    switch (cube)
-                    { 
-                        // Rendered cases
-                        case 7:  get_uvs(uvs, 0, 0, tw, th, sw, sh); break;  // 0x00000111
-                        case 11: get_uvs(uvs, 1, 0, tw, th, sw, sh); break;  // 0x00001011
-                        case 13: get_uvs(uvs, 2, 0, tw, th, sw, sh); break;  // 0x00001101
-                        case 14: get_uvs(uvs, 3, 0, tw, th, sw, sh); break;  // 0x00001110
-                        case 15: get_uvs(uvs, 4, 0, tw, th, sw, sh); break;  // 0x00001111
-                        case 19: get_uvs(uvs, 5, 0, tw, th, sw, sh); break;  // 0x00010011
-                                 
-                        case 22:                                             // 0x00010110
-                        case 54:                                             // 0x00110110
-                        case 55:                                             // 0x00110111 
-                        case 214: 
-                        case 215: 
-                        case 23: get_uvs(uvs, 6, 0, tw, th, sw, sh); break;  // 0x00010111
-
-                        case 25: get_uvs(uvs, 8, 3, tw, th, sw, sh); break;  // 0x00011010
-
-                        case 26:                                             // 0x00011010
-                        case 27: get_uvs(uvs, 7, 0, tw, th, sw, sh); break;  // 0x00011011
-
-                        case 28:                                             // 0x00011100
-                        case 29: get_uvs(uvs, 8, 0, tw, th, sw, sh); break;  // 0x00011101
-
-                        case 30:                                             // 0x00010110
-                        case 31: get_uvs(uvs, 3, 5, tw, th, sw, sh); break;  // 0x00010110 
-
-                        case 35: get_uvs(uvs, 1, 4, tw, th, sw, sh); break;  // 0x00100011
-
-                        case 38: get_uvs(uvs, 4, 4, tw, th, sw, sh); break; // 0x00100110
-
-                        case 37:                                             // 0x00100101
-                        case 39: get_uvs(uvs, 0, 1, tw, th, sw, sh); break;  // 0x00100111
-
-                        case 42:                                             // 0x00101010 
-                        case 43: get_uvs(uvs, 5, 4, tw, th, sw, sh); break;  // 0x00101011
-
-                        case 44: get_uvs(uvs, 4, 4, tw, th, sw, sh); break;  // 0x00101100
-
-                        case 45:                                             // 0x00101101
-                        case 104:                                            // 0x01101000
-                        case 100: get_uvs(uvs, 8, 1, tw, th, sw, sh); break; // 0x01101010
-
-                        case 46:                                             // 0x00101110 
-                        case 47: get_uvs(uvs, 1, 1, tw, th, sw, sh); break;  // 0x00101111
-
-                        case 50: get_uvs(uvs, 5, 5, tw, th, sw, sh); break;  // 0x00110010
-
-                        case 51: get_uvs(uvs, 3, 4, tw, th, sw, sh); break;  // 0x00110011
-
-                        case 56: get_uvs(uvs, 2, 1, tw, th, sw, sh); break;  // 0x00111000 
-
-                        case 58:
-                        case 59: get_uvs(uvs, 0, 6, tw, th, sw, sh); break;  // 0x00111011
-
-                        case 60:                                             // 0x00111100 
-                        case 61:                                             // 0x00111101 
-                        case 62:                                             // 0x00111110 
-                        case 63: get_uvs(uvs, 3, 1, tw, th, sw, sh); break;  // 0x00111111
-
-                        case 70: get_uvs(uvs, 3, 6, tw, th, sw, sh); break;  // 0x01000110
-                        case 71: get_uvs(uvs, 3, 6, tw, th, sw, sh); break;  // 0x01000111
-                        case 74: get_uvs(uvs, 4, 6, tw, th, sw, sh); break;  // 0x01001010
-                        case 76: get_uvs(uvs, 0, 4, tw, th, sw, sh); break;  // 0x01001100
-                        case 77: get_uvs(uvs, 0, 4, tw, th, sw, sh); break;  // 0x01001101
-                        case 78: get_uvs(uvs, 5, 1, tw, th, sw, sh); break;  // 0x01001110
-                        case 79: get_uvs(uvs, 5, 1, tw, th, sw, sh); break;  // 0x01001111
-                        case 82: get_uvs(uvs, 4, 5, tw, th, sw, sh); break;  // 0x01010010
-                        case 87: get_uvs(uvs, 5, 6, tw, th, sw, sh); break;  // 0x01010111
-                        case 88: get_uvs(uvs, 4, 6, tw, th, sw, sh); break;  // 0x01011000
-                        case 93: get_uvs(uvs, 4, 6, tw, th, sw, sh); break;  // 0x01011101
-                        case 95: get_uvs(uvs, 7, 6, tw, th, sw, sh); break;  // 0x01011111
-
-                        case 102: get_uvs(uvs, 7, 3, tw, th, sw, sh); break; // 0x01100110
-
-                        case 103: break; // 0x01100111
-                        case 110: break; // 0x01101110
-                        case 111: get_uvs(uvs, 0, 5, tw, th, sw, sh); break; // 0x01101111
-                        case 112: break; // 0x01110000
-                        case 119: break; // 0x01110111
-
-                        case 120:                                            // 0x01111000
-                        case 121:                                            // 0x01111001
-                        case 122:                                            // 0x01111010
-                        case 123:                                            // 0x01111011
-                        case 124:                                            // 0x01111100
-                        case 125:                                            // 0x01111101
-                        case 126:                                            // 0x01111101
-                        case 127: get_uvs(uvs, 2, 5, tw, th, sw, sh); break; // 0x01111111
-
-                        case 131: break; // 0x10000011
-                        case 134: break; // 0x10000110
-
-                        case 133:                                            // 0x10000101 
-                        case 141: get_uvs(uvs, 1, 2, tw, th, sw, sh); break; // 0x10001101 
-
-                        case 135:                                            // 0x10000111
-                        case 143: get_uvs(uvs, 6, 5, tw, th, sw, sh); break; // 0x10001111
-
-                        case 149: get_uvs(uvs, 4, 2, tw, th, sw, sh); break; // 0x10010101
-
-                        case 137: get_uvs(uvs, 2, 6, tw, th, sw, sh); break; // 0x10001001
-
-                        case 138: break; // 0x10001010
-                        case 139: break; // 0x10001011
-                        case 140: break; // 0x
-                        case 142: break; // 0x
-
-                        case 146: get_uvs(uvs, 3, 2, tw, th, sw, sh); break; // 0x10010010
-
-                        case 148: break; // 0x10010100
-
-                        case 150:                                            // 0x10010110
-                        case 151:                                            // 0x10010111
-                        case 158:                                            // 0x10011110
-                        case 159: get_uvs(uvs, 5, 2, tw, th, sw, sh);break;  // 0x10011111 
-
-                        case 152: get_uvs(uvs, 1, 5, tw, th, sw, sh); break; // 0x10010110
-
-                        case 153: get_uvs(uvs, 2, 4, tw, th, sw, sh); break; // 0x10011001
-
-                        case 155: get_uvs(uvs, 1, 6, tw, th, sw, sh); break; // 0x10011011
-                        case 157: break; // 0x10011101 
-                        
-                        case 177: // 0x10110001
-                        case 161: get_uvs(uvs, 6, 2, tw, th, sw, sh); break; // 0x10100001
-
-                        case 165:                                            // 0x10100101
-                        case 167:                                            // 0x10100111
-                        case 173:                                            // 0x10101011
-                        case 174:                                            // 0x10101110
-                        case 175: get_uvs(uvs, 8, 5, tw, th, sw, sh); break; // 0x10101111
-
-                        case 164:                                            // 0x10100100
-                        case 166:                                            // 0x10100110
-                        case 172:                                            // 0x10100111
-                        case 180:                                            // 0x10110100
-                        case 181:                                            // 0x10110101
-                        case 182:                                            // 0x10110110
-                        case 183: get_uvs(uvs, 7, 2, tw, th, sw, sh); break; // 0x10110111
-                        case 191: get_uvs(uvs, 7, 2, tw, th, sw, sh); break; // 0x10111111
-
-                        case 186:  // 0x10111010
-                        case 187:  // 0x10111011
-                        case 170:  // 0x10101010 
-                        case 171: get_uvs(uvs, 5, 3, tw, th, sw, sh); break; // 0x10101011
-
-                        case 176: break; // 0x10110000
-                        case 193: break; // 0x11000001
-                        case 194: break; // 0x11000010
-                        case 195: break; // 0x11000011
-
-                        case 196: get_uvs(uvs, 5, 5, tw, th, sw, sh); break; // 0x11000100
-
-                        case 204: get_uvs(uvs, 2, 4, tw, th, sw, sh); break; // 0x11001100
-
-                        case 205: get_uvs(uvs, 6, 3, tw, th, sw, sh); break; // 0x11001101
-                        case 206: break; // 0x11001110
-                        case 207: get_uvs(uvs, 3, 6, tw, th, sw, sh); break; // 0x11001111
-                        case 208: break; // 0x11010000 
-                        
-                        case 210:                                            // 0x11010010
-                        case 211:                                            // 0x11010011
-                        case 212:                                            // 0x11010011
-                        case 213:                                            // 0x11010011
-                        case 216:                                            // 0x11010111
-                        case 217:                                            // 0x11010111
-                        case 218:                                            // 0x11011010
-                        case 219: get_uvs(uvs, 4, 5, tw, th, sw, sh); break; // 0x11011011
-                        case 222: get_uvs(uvs, 4, 5, tw, th, sw, sh); break; // 0x11011011
-                        case 223: get_uvs(uvs, 4, 5, tw, th, sw, sh); break; // 0x11011011
-
-                        case 221: break; // 0x11011101
-                        case 224: break; // 0x11100000
-                        case 238: break; // 0x11101110
-                        case 239: get_uvs(uvs, 3, 0, tw, th, sw, sh); break; // 0x11101111
-                        case 240: break; // 0x11110000
-
-                        default: 
-                        {
-                            continue;
-                            // gs_println("could not find: %zu, " BYTE_TO_BINARY_PATTERN, cube, BYTE_TO_BINARY(cube));
-                            // gs_assert(false);
-                        } break;
-                    }; 
-                    */
 
                     // Check surrounding voxels to determine whether or not filled before adding quad to 
                     // prevent overdraw.
@@ -462,26 +260,32 @@ gs_vec4 uvs[16] = {
                             continue;
                         } break;
 
-                        case 26: 
                         case 27:   get_uvs(uvs, 9, 0, tw, th, sw, sh);  break; // 0x00011011
-
                         case 31:   get_uvs(uvs, 7, 1, tw, th, sw, sh);  break; // 0x00011111
-                        case 47:   get_uvs(uvs, 8, 1, tw, th, sw, sh);  break; // 0x00101111
+                        case 39:   get_uvs(uvs, 10, 0, tw, th, sw, sh); break; // 0x00100111
+                        case 47:   get_uvs(uvs, 2, 1, tw, th, sw, sh);  break; // 0x00101111
                         case 55:   get_uvs(uvs, 3, 2, tw, th, sw, sh);  break; // 0x00110111
                         case 59:   get_uvs(uvs, 1, 2, tw, th, sw, sh);  break; // 0x00111011
                         case 63:   get_uvs(uvs, 2, 0, tw, th, sw, sh);  break; // 0x00111111
                         case 79:   get_uvs(uvs, 13, 0, tw, th, sw, sh); break; // 0x01001111
-                        case 111:  get_uvs(uvs, 3, 0, tw, th, sw, sh);  break; // 0x01101111
-                        case 119:  get_uvs(uvs, 5, 0, tw, th, sw, sh);  break; // 0x01110111
+                        case 95:   get_uvs(uvs, 10, 1, tw, th, sw, sh); break; // 0x01011111
+                        case 111:  get_uvs(uvs, 4, 0, tw, th, sw, sh);  break; // 0x01101111
+                        case 119:  get_uvs(uvs, 4, 1, tw, th, sw, sh);  break; // 0x01110111
                         case 127:  get_uvs(uvs, 7, 0, tw, th, sw, sh);  break; // 0x01111111
+                        case 141:  get_uvs(uvs, 11, 0, tw, th, sw, sh); break; // 0x10001101
                         case 143:  get_uvs(uvs, 9, 1, tw, th, sw, sh);  break; // 0x10001111
+						case 155:  get_uvs(uvs, 1, 2, tw, th, sw, sh);  float tmp = uvs.z; uvs.z = uvs.x; uvs.x = tmp; break; // 0x10011011
+						case 157:  get_uvs(uvs, 0, 2, tw, th, sw, sh);	break; // 0x10011101
                         case 159:  get_uvs(uvs, 1, 0, tw, th, sw, sh);  break; // 0x10011111
+                        case 175:  get_uvs(uvs, 12, 1, tw, th, sw, sh); break; // 0x10101111
                         case 187:  get_uvs(uvs, 3, 1, tw, th, sw, sh);  break; // 0x10111011
                         case 191:  get_uvs(uvs, 6, 0, tw, th, sw, sh);  break; // 0x10111111
-                        case 207:  get_uvs(uvs, 4, 0, tw, th, sw, sh);  break; // 0x11001111
+                        //case 102:  get_uvs(uvs, 4, 0, tw, th, sw, sh);  break; // 0x01101110
+                        //case 103:  get_uvs(uvs, 4, 0, tw, th, sw, sh);  break; // 0x01101111
+                        case 207:  get_uvs(uvs, 3, 0, tw, th, sw, sh);  break; // 0x11001111
                         case 221:  get_uvs(uvs, 5, 1, tw, th, sw, sh);  break; // 0x11011101
                         case 223:  get_uvs(uvs, 5, 0, tw, th, sw, sh);  break; // 0x11011111
-                        case 238:  get_uvs(uvs, 6, 0, tw, th, sw, sh);  break; // 0x11101110 
+                        case 238:  get_uvs(uvs, 8, 0, tw, th, sw, sh);  break; // 0x11101110 
                         case 239:  get_uvs(uvs, 8, 0, tw, th, sw, sh);  break; // 0x11101111 
                         case 255:  
                         {
