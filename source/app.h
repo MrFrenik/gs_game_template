@@ -1335,6 +1335,12 @@ void camera_gui(mu_Context* ctx, gs_camera_t* cam)
 
     if (mu_begin_window(ctx, "Properties", mu_rect(40, 40, 300, 450)))
     { 
+        if (mu_header_ex(ctx, "Frame", MU_OPT_EXPANDED)) 
+        {
+            gs_snprintfc(TMP, 32, "frame: %.2f", gs_engine_subsystem(platform)->time.frame);
+            mu_label(ctx, TMP); 
+        }
+
         if (mu_header_ex(ctx, "Terrain", MU_OPT_EXPANDED)) 
         {
             mu_label(ctx, "amplitude:"); mu_slider(ctx, &app->amplitude, 1.f, 5000.f); 

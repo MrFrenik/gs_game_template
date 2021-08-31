@@ -5,12 +5,14 @@
 #define WORLD_VOXEL_CARTESIAN_WIDTH   32
 #define WORLD_VOXEL_ISO_WIDTH         32
 #define WORLD_VOXEL_ISO_HEIGHT        16  
-#define WORLD_CHUNK_WIDTH             64
+#define WORLD_CHUNK_WIDTH             128
 #define WORLD_CHUNK_HEIGHT            32    // Not sure about having infinite chunk height yet.
-#define WORLD_CHUNK_DEPTH             64 
+#define WORLD_CHUNK_DEPTH             128 
 #define WORLD_REGION_WIDTH            1
 #define WORLD_REGION_HEIGHT           1
 #define WORLD_REGION_DEPTH            1
+
+// Need quad trees for chunks
 
 // This will change to above
 #define VOXEL_SIZE 16.f         // Voxel size is half of the width of the isometric tile texture. I know. It's confusing.
@@ -68,12 +70,7 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
     Iterate through 2d mapping of world (which is ww * wh * rw * rd * cw * cd pixels) 
 */
 
-#ifdef WORLD_IMPL
-
-typedef struct voxel_cube_t
-{
-    uint8_t bits : 4;
-} voxel_cube_t;
+#ifdef WORLD_IMPL 
 
 GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_buffer_t* cb, float amplitude, gs_vec2 period)
 {
@@ -144,6 +141,7 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
                         const float d = vy - n; 
 
                         const float r = 24 * (sin(t) * 0.5f + 0.8f);
+
                         // Try a sphere?
                         const float vx = x * VOXEL_SIZE;
                         const float vz = z * VOXEL_SIZE;
@@ -151,16 +149,15 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
 
                         // If valid, then we'll be on, otherwise off.
                         // Need to map valid corner cases to indices for UVs.
-                        // if (d <= 1.f)
-                        if (r - sd >= 0.f && d <= 0.5f)
-                        // if (d <= 0.5f)
+                        if (r - sd >= 0.f || d <= 0.5f)
+                        //if (d <= 0.5f)
                         { 
                             corners[idx] = 1;
                         } 
 
                         if (y == 0 || y == 1) 
                         {
-                            // corners[idx] = 1;
+                            corners[idx] = 1;
                         }
                     }
                 }
@@ -188,6 +185,9 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
     {
         // Eventually will need chunk origin
         gs_vec3 co = gs_v3(0 * WORLD_CHUNK_WIDTH, 0 * WORLD_CHUNK_HEIGHT, 0 * WORLD_CHUNK_DEPTH);
+
+        static bool do_it = true;
+        if (gs_platform_key_pressed(GS_KEYCODE_P)) do_it = !do_it;
 
         // Iterate through voxels for contouring (look at individual corners for each voxel)
         for (uint32_t cx = 0; cx < WORLD_CHUNK_WIDTH; ++cx)
@@ -245,13 +245,27 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
         };\
     } while (0)
                     // Determine uvs based on case 
-                    gs_vec4 uvs = gs_v4s(-1.f);
-
+                    gs_vec4 uvs = gs_v4s(-1.f); 
 
                     // Check surrounding voxels to determine whether or not filled before adding quad to 
-                    // prevent overdraw.
-
-                    // Can't really just "check" voxels, have to check outlying corners of other voxels
+                    // prevent overdraw.  
+                    if (y < WORLD_CHUNK_HEIGHT - 2 && z < WORLD_CHUNK_DEPTH - 1 && x < WORLD_CHUNK_WIDTH - 1)
+                    {
+                        if (
+                            corners[GET_IDX(x, y + 2, z)]         && 
+                            corners[GET_IDX(x, y + 2, z + 1)]     &&
+                            corners[GET_IDX(x + 1, y + 2, z)]     && 
+                            corners[GET_IDX(x + 1, y + 2, z + 1)] &&
+                            corners[GET_IDX(x + 1, y + 2, z + 2)] && 
+                            corners[GET_IDX(x + 1, y + 1, z + 2)] && 
+                            corners[GET_IDX(x + 2, y + 1, z)]     &&      
+                            corners[GET_IDX(x + 2, y + 1, z + 1)] &&     
+                            corners[GET_IDX(x + 2, y + 1, z + 2)]    
+                        )
+                        {
+                            continue;
+                        }
+                    }
 
                     switch (cube)
                     {
@@ -287,10 +301,7 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
                         case 223:  get_uvs(uvs, 5, 0, tw, th, sw, sh);  break; // 0x11011111
                         case 238:  get_uvs(uvs, 8, 0, tw, th, sw, sh);  break; // 0x11101110 
                         case 239:  get_uvs(uvs, 8, 0, tw, th, sw, sh);  break; // 0x11101111 
-                        case 255:  
-                        {
-                            get_uvs(uvs, 0, 0, tw, th, sw, sh); break; // 0x11111111
-                        }
+                        case 255:  get_uvs(uvs, 0, 0, tw, th, sw, sh);  break; // 0x11111111
                     } 
 
                     // Cartesian coordinates
@@ -308,19 +319,20 @@ GS_API_DECL world_t world_generate(uint64_t seed, quad_batch_t* qb, gs_command_b
                     // Color
                     gs_color_t c = GS_COLOR_WHITE; 
 
-                    // Want to darken their color by their depth
-                    uint8_t v = (uint8_t)gs_map_range(0.f, (f32)WORLD_CHUNK_HEIGHT, 10.f, 255.f, (f32)y); 
+                    // Want to darken their color by their depth 
+                    uint8_t v = (uint8_t)gs_map_range(0.f, (f32)WORLD_CHUNK_HEIGHT, 200.f, 255.f, (f32)y); 
                     c.r = v;
                     c.g = v;
-                    c.b = v;
+                    c.b = v; 
 
-                    gs_vec4* uv = &uvs;
-                    // gs_vec4* uv = &uvs[cube];
-                    // gs_vec4 uvs = gs_v4(0.f, 0.f, 1.f, 1.f);
-                    // gs_vec4* uv = &uvs;
-                    // gs_println("bits: %zu, uv: <%.2f, %.2f, %.2f, %.2f>", bits, uv->x, uv->y, uv->z, uv->w); 
+                    float f = ((f32)y / (f32)WORLD_CHUNK_HEIGHT);
+                    if (f < 1.f / 6.f)      c = gs_color(212, 224, 155, 255);
+                    else if (f < 2.f / 6.f) c = gs_color(246, 244, 210, 255);
+                    else if (f < 3.f / 6.f) c = gs_color(203, 223, 189, 255);
+                    else if (f < 4.f / 6.f) c = gs_color(241, 156, 121, 255);
+                    else                    c = gs_color(164, 74, 63, 255);
 
-                    // Need to look at surrounding voxels to know how to contour (also what voxels to omit for meshing (if completely covered))
+                    gs_vec4* uv = &uvs; 
 
                     // Add a quad batch, bitches
                     quad_batch_add(qb, &(gs_vec2){ix, iz}, &(gs_vec2){32.f, 32.f}, uv, &c, id);

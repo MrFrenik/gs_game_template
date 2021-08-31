@@ -95,13 +95,14 @@ GS_API_DECL void quad_batch_begin(quad_batch_t* qb)
 
 GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb)
 {
-    // This isn't actually *that* bad.
-    quad_batch_sort(qb); 
+    // NOTE(john): This is ~5ms (and isn't necessary with a voxel structure)
+    // quad_batch_sort(qb);
 
     gs_dyn_array(quad_vert_t) verts = {0};
     gs_dyn_array(uint32_t) indices = {0};
 
     // Push back all verts, store indices to verts for quads 
+    // NOTE(john): This is ~4ms
     for (uint32_t i = 0; i < gs_dyn_array_size(qb->quads); ++i)
     {
         const quad_t* q = &qb->quads[i]; 
