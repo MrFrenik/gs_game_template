@@ -7,6 +7,27 @@
 
 #define META_STR_MAX 1024 
 
+typedef struct ctor_t
+{
+    char func[META_STR_MAX * 4];
+    char params[META_STR_MAX];
+} ctor_t; 
+
+typedef struct dtor_t
+{
+    char func[META_STR_MAX * 4];
+} dtor_t; 
+
+typedef struct serialize_t
+{
+    char func[META_STR_MAX * 4];
+} serialize_t; 
+
+typedef struct deserialize_t
+{
+    char func[META_STR_MAX * 4];
+} deserialize_t; 
+
 typedef struct vtable_func_t
 {
     char name[META_STR_MAX];
@@ -43,6 +64,10 @@ typedef struct meta_class_t
 	char base[META_STR_MAX];
 	gs_dyn_array(meta_prop_t) properties;
     vtable_t vtable;
+    ctor_t ctor; 
+    dtor_t dtor;
+    serialize_t serialize;
+    deserialize_t deserialize;
 } meta_class_t;
 
 typedef struct reflection_data_t
@@ -114,7 +139,7 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
 	else if (gs_token_compare_text(&t, "base"))
 	{
 		// Get opening paren
-		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false); 
 		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) gs_assert(false);
 		t = lex->current_token;
 		
@@ -124,6 +149,166 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
 		// Move to the semicolon
 		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_RPAREN)) gs_assert(false);
 	}
+    // Ctor
+    else if (gs_token_compare_text(&t, "ctor"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+        
+        // Continue until right paren is found to exit
+        do
+        {
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                case GS_TOKEN_IDENTIFIER:
+                {
+                    // Parameters
+                    if (gs_token_compare_text(&t, "params")) 
+                    { 
+		                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) 
+                        {
+                            gs_println("params failed!");
+                            gs_assert(false);
+                        }
+                        
+                        // Continue until right paren is found to close
+                        uint32_t pc = 1; 
+                        gs_token_t _c = lex->next_token(lex);
+                        do
+                        { 
+                            t = lex->next_token(lex); 
+                            switch (t.type)
+                            {
+                                default: break;
+                                case GS_TOKEN_LPAREN: pc++; break;
+                                case GS_TOKEN_RPAREN: pc--;
+                            } 
+                        } while (pc);
+
+                        // Copy text now for params
+                        const size_t len = t.text - _c.text;
+                        gs_assert(len < META_STR_MAX);
+                        memcpy(c->ctor.params, _c.text, len); 
+
+                        // Get next token afterwards to move forward 
+                        t = lex->next_token(lex);
+                    }
+
+                    // Function
+                    else if (gs_token_compare_text(&t, "func"))
+                    { 
+		                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) 
+                        { 
+                            gs_println("func failed!");
+                            gs_assert(false);
+                        }
+
+                        // Continue until right paren is found to close
+                        uint32_t pc = 1; 
+                        gs_token_t _c = lex->next_token(lex);
+                        do
+                        { 
+                            t = lex->next_token(lex); 
+                            switch (t.type)
+                            {
+                                default: break;
+                                case GS_TOKEN_LPAREN: pc++; break;
+                                case GS_TOKEN_RPAREN: pc--;
+                            } 
+                        } while (pc);
+
+                        const size_t len = t.text - _c.text;
+                        gs_assert(len < META_STR_MAX);
+                        memcpy(c->ctor.func, _c.text, len); 
+
+                        // Get next token afterwards to move forward
+                        t = lex->next_token(lex);
+                    }
+                } break; 
+            }
+        } while (t.type != GS_TOKEN_RPAREN);
+    }
+    // Dtor
+    else if (gs_token_compare_text(&t, "dtor"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->dtor.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    }
+    // Serialize
+    else if (gs_token_compare_text(&t, "serialize"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->serialize.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    } 
+    // Deserialize
+    else if (gs_token_compare_text(&t, "deserialize"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->deserialize.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    }
     // VTable
     else if (gs_token_compare_text(&t, "vtable")) 
     {
@@ -132,13 +317,6 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
         // Just copy everything in vtable description for now (not individual functions)
         if (gs_lexer_peek(lex).type != GS_TOKEN_RPAREN) 
         {
-            /*
-            typedef struct vtable_func_t
-            {
-                char name[META_STR_MAX];
-                char func_ptr[META_STR_MAX];
-            } vtable_func_t;
-            */
             vtable_func_t f = {0};
             gs_token_t cur = lex->next_token(lex);
             t = cur;
@@ -402,9 +580,57 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
 	// Formatting
 	gs_fprintln(fp, "");	
+
+	gs_fprintln(fp, "// ==== Main API === //");	
 	
 	// Functions API
 	gs_fprintln(fp, "GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta);");	
+
+    // Formatting
+	gs_fprintln(fp, "");	
+
+	gs_fprintln(fp, "// ==== Objects API === //\n");	
+    
+    // Generated Functions API 
+    for 
+    (
+        gs_hash_table_iter it = gs_hash_table_iter_new(refl->classes);
+        gs_hash_table_iter_valid(refl->classes, it);
+        gs_hash_table_iter_advance(refl->classes, it)
+    )
+    {
+        meta_class_t* c = gs_hash_table_iter_getp(refl->classes, it);
+
+        const char* name = c->name;
+        const char* base = c->base;
+        uint32_t prop_cnt = gs_dyn_array_size(c->properties);
+
+        gs_fprintln(fp, "// == %s API == //", name);	
+
+        // Ctor (have to determine whether or not ctor is available or not)
+        {
+            const char* params =  c->ctor.params;
+            gs_fprintln(fp, "GS_API_DECL %s %s_ctor(%s);", name, name, params);	
+        }
+
+        // Dtor
+        {
+            gs_fprintln(fp, "GS_API_DECL void %s_dtor(%s* obj);", name, name);	
+        }
+
+        // Serialize
+        {
+            gs_fprintln(fp, "GS_API_DECL gs_result %s_serialize(gs_byte_buffer_t* buffer, const object_t* in);", name, name);	
+        }
+
+        // Deserialize
+        {
+            gs_fprintln(fp, "GS_API_DECL gs_result %s_deserialize(gs_byte_buffer_t* buffer, object_t* out);", name, name);	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+    }
 
 	// Implementation
 	gs_fprintln(fp, "\n//============[ Implementation ]==============//\n");	
@@ -543,6 +769,127 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
 	// Formatting
 	gs_fprintln(fp, "");
+
+    // Formatting
+	gs_fprintln(fp, "");	
+
+	gs_fprintln(fp, "// ==== Objects API === //\n");	
+    
+    // Generated Functions API 
+    for 
+    (
+        gs_hash_table_iter it = gs_hash_table_iter_new(refl->classes);
+        gs_hash_table_iter_valid(refl->classes, it);
+        gs_hash_table_iter_advance(refl->classes, it)
+    )
+    {
+        meta_class_t* c = gs_hash_table_iter_getp(refl->classes, it);
+
+        const char* name = c->name;
+        const char* base = c->base;
+        uint32_t prop_cnt = gs_dyn_array_size(c->properties);
+
+        gs_fprintln(fp, "// == %s API == //\n", name);	
+
+        // Ctor
+        {
+            const char* params =  c->ctor.params;
+            const char* func = c->ctor.func;
+
+            gs_fprintln(fp, "GS_API_DECL %s %s_ctor(%s)", name, name, params);	
+            gs_fprintln(fp, "{"); 
+
+            gs_fprintln(fp, "\t%s _obj = gs_default_val();", name);	
+            gs_fprintln(fp, "\t%s* this = &_obj;", name);	
+
+            // Set object id here
+            gs_fprintln(fp, "\tcast(this, object_t)->cls_id = obj_sid(%s);", name);	
+            
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s", func);	
+            }
+
+            // Return
+            gs_fprintln(fp, "\treturn _obj;");	
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+
+        // Dtor 
+        {
+            const char* func = c->dtor.func;
+
+            gs_fprintln(fp, "GS_API_DECL void %s_dtor(%s* obj)", name, name);	
+            gs_fprintln(fp, "{"); 
+
+            gs_fprintln(fp, "\t%s* this = obj;", name);	
+            
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s", func);	
+            } 
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Serialize
+        {
+            const char* func = c->serialize.func;
+
+            gs_fprintln(fp, "GS_API_DECL gs_result %s_serialize(gs_byte_buffer_t* buffer, const object_t* in)", name);	
+            gs_fprintln(fp, "{"); 
+
+            gs_fprintln(fp, "\t%s* this = in;", name);	
+            
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s", func);	
+                gs_fprintln(fp, "\treturn GS_RESULT_SUCCESS;");	
+            } 
+            else
+            {
+                // Default serialization function
+                gs_fprintln(fp, "\treturn GS_RESULT_INCOMPLETE;");	
+            }
+
+            gs_fprintln(fp, "}");	
+        }
+
+
+        // Deserialize
+        {
+            const char* func = c->deserialize.func;
+
+            gs_fprintln(fp, "GS_API_DECL gs_result %s_deserialize(gs_byte_buffer_t* buffer, object_t* out)", name);	
+            gs_fprintln(fp, "{"); 
+
+            gs_fprintln(fp, "\t%s* this = out;", name);	
+            
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s", func);	
+                gs_fprintln(fp, "\treturn GS_RESULT_SUCCESS;");	
+            } 
+            else
+            {
+                // Default deserialization function
+                gs_fprintln(fp, "\treturn GS_RESULT_INCOMPLETE;");	
+            }
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+    }
 
 	// Footer
 	gs_fprintln(fp, "#endif // GENERATED_IMPL");	

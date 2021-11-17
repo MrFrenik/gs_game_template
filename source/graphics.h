@@ -41,11 +41,8 @@ GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb);
 GS_API_DECL void quad_batch_add(quad_batch_t* qb, const gs_vec2* position, const gs_vec2* dimensions, const gs_vec4* uvs, const gs_color_t* color, float depth);
 GS_API_PRIVATE void quad_batch_sort(quad_batch_t* qb);
 
-introspect()
 typedef struct renderable_t
-{
-	base(object_t)
-
+{ 
 	// Fields
 	gs_gfxt_renderable_t data;
 	uint32_t mesh_hndl;

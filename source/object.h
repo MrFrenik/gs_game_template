@@ -34,6 +34,10 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 
 // Useful defines
 #define base(T) T _base;
+#define ctor(...) gs_empty_instruction()
+#define dtor(...) gs_empty_instruction()
+#define serialize(...) gs_empty_instruction()
+#define deserialize(...) gs_empty_instruction()
 #define cast(A, B) ((B*)(A))
 
 // Reflection defines
@@ -41,18 +45,17 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define ignore(...) gs_empty_instruction() 
 
 // Object functions
-#define obj_id(OBJ)                  (cast(OBJ, object_t)->cls_id)  // Get object class id from instance
+#define obj_id(OBJ)                  (cast((OBJ), object_t)->cls_id)  // Get object class id from instance
 #define obj_sid(T)                   gs_hash_str64(gs_to_str(T))    // Get object class id from static type
 #define obj_vtable_w_id(ID)          (&(gs_hash_table_getp(meta_get_instance()->registry.classes, ID)->vtable)) // Get vtable for class
 #define obj_func_w_id(ID, NAME)      gs_meta_func_getp_w_id(&meta_get_instance()->registry, ID, NAME) // Get function in vtable based on name
 #define obj_new(T)                   _obj_new_internal(obj_sid(T)) // Heap allocate object of type based on type
 #define obj_newid(ID)                _obj_new_internal(ID) // Heap allocate object based on cls id
-#define obj_ctor(T, OBJ, ARGS)       _obj_ctor_internal(obj_id(OBJ), OBJ, ARGS) 
-#define obj_ctor_w_id(ID, OBJ, ARGS) _obj_ctor_internal(ID, OBJ, ARGS)
-#define obj_ctorc(T, N, A)           T N = gs_default_val(); _obj_ctor_internal(obj_sid(T), &N, A)
-#define obj_dtor(OBJ)                _obj_dtor_internal(obj_id(OBJ), OBJ);
-#define obj_serialize(BUFFER, OBJ)   _obj_serialize_internal(obj_id(OBJ), BUFFER, OBJ);
-#define obj_deserialize(BUFFER, OBJ) _obj_deserialize_internal(obj_id(OBJ), BUFFER, OBJ); 
+
+#define obj_ctor(T, ...)                T##_ctor(__VA_ARGS__) 
+#define obj_dtor(T, OBJ)                T##_dtor(OBJ) 
+#define obj_serialize(T, BUFFER, OBJ)   T##_serialize(BUFFER, OBJ)
+#define obj_deserialize(T, BUFFER, OBJ) T##_deserialize(BUFFER, OBJ)
 
 #define introspect(...) gs_empty_instruction()
 
@@ -131,53 +134,7 @@ GS_API_PRIVATE object_t* _obj_new_internal(uint64_t id)
     object_t* obj = gs_malloc(cls->size);
     obj->cls_id = id;
     return obj;
-}
-
-GS_API_PRIVATE void _obj_ctor_internal(uint64_t id, object_t* obj, void* args)
-{
-    // Set id of object first
-    obj->cls_id = id;
-
-    // Need to verify, if debug enabled, that id is valid first.
-    gs_assert(gs_meta_class_exists(&meta_get_instance()->registry, id));
-
-    // If has ctor, then call
-    gs_if(obj_ctor_func* f = obj_func_w_id(id, ctor), f != NULL, 
-    {
-        (*f)(obj, args); 
-    });
-}
-
-GS_API_PRIVATE void _obj_dtor_internal(uint64_t id, object_t* obj)
-{
-    // If has dtor, then call
-    gs_if(obj_dtor_func* f = obj_func_w_id(id, dtor), f != NULL, 
-    {
-        (*f)(obj); 
-    });
-}
-
-GS_API_PRIVATE gs_result _obj_serialize_internal(uint64_t id, gs_byte_buffer_t* buffer, object_t* in)
-{
-    // If has serialize, then call
-    obj_serialize_func* f = obj_func_w_id(id, serialize);
-    if (f != NULL) 
-    {
-        return (*f)(buffer, in); 
-    }
-    return GS_RESULT_INCOMPLETE;
-}
-
-GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t* buffer, object_t* out)
-{
-    // If has deserialize, then call
-    obj_deserialize_func* f = obj_func_w_id(id, deserialize);
-    if (f != NULL) 
-    {
-        return (*f)(buffer, out); 
-    }
-    return GS_RESULT_INCOMPLETE;
-}
+} 
 
 //===== [ Utils ] ======
 

@@ -53,9 +53,8 @@ typedef struct texture_t
 
     // Vtable
     vtable(
-        .dtor = texture_t_dtor, 
-        .serialize = texture_t_serialize, 
-        .deserialize = texture_t_deserialize
+        .serialize = texture_serialize, 
+        .deserialize = texture_deserialize
     )
 
 	// Fields
@@ -63,10 +62,8 @@ typedef struct texture_t
 
 } texture_t; 
 
-GS_API_DECL void texture_t_ctor(object_t* obj, void* args);
-GS_API_DECL void texture_t_dtor(object_t* obj);
-GS_API_DECL gs_result texture_t_serialize(gs_byte_buffer_t* buffer, object_t* in);
-GS_API_DECL gs_result texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* out); 
+GS_API_DECL gs_result texture_serialize(gs_byte_buffer_t* buffer, object_t* in);
+GS_API_DECL gs_result texture_deserialize(gs_byte_buffer_t* buffer, object_t* out); 
 GS_API_DECL bool texture_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
 
 introspect()
@@ -106,9 +103,6 @@ typedef struct material_t
 } material_t;
 
 // VTable functions
-GS_API_DECL void material_t_ctor(object_t* obj);
-GS_API_DECL void material_t_dtor(object_t* obj);
-GS_API_DECL object_t* material_t_malloc(size_t sz);
 GS_API_DECL gs_result material_t_serialize(gs_byte_buffer_t* buffer, object_t* in);
 GS_API_DECL gs_result material_t_deserialize(gs_byte_buffer_t* buffer, object_t* out); 
 
@@ -591,28 +585,9 @@ GS_API_DECL bool texture_t_load_resource_from_file(const char* path, asset_t* ou
 	}
 
 	return true;
-}
+} 
 
-GS_API_DECL void texture_t_ctor(object_t* obj, void* args)
-{
-    // Nothing for now
-    gs_println("CTOR!");
-}
-
-GS_API_DECL void texture_t_dtor(object_t* obj)
-{
-    // Nothing for now
-    gs_println("DTOR!");
-}
-
-GS_API_DECL object_t* texture_t_malloc(size_t sz)
-{
-    // Nothing for now...
-    gs_println("MALLOC!");
-    return NULL;
-}
-
-GS_API_DECL gs_result texture_t_serialize(gs_byte_buffer_t* buffer, const object_t* in)
+GS_API_DECL gs_result texture_serialize(gs_byte_buffer_t* buffer, const object_t* in)
 {
     gs_println("SERIALIZE!");
     return GS_RESULT_INCOMPLETE;
@@ -647,7 +622,7 @@ GS_API_DECL gs_result texture_t_serialize(gs_byte_buffer_t* buffer, const object
 	return GS_RESULT_SUCCESS;
 }
 
-GS_API_DECL gs_result texture_t_deserialize(gs_byte_buffer_t* buffer, object_t* out)
+GS_API_DECL gs_result texture_deserialize(gs_byte_buffer_t* buffer, object_t* out)
 {
     gs_println("DESERIALIZE!");
     return GS_RESULT_INCOMPLETE;

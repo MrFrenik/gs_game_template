@@ -27,10 +27,10 @@
 #include "asset.h"
 
 #define GRAPHICS_IMPL
-#include "graphics.h"
+#include "graphics.h" 
 
-#define WORLD_IMPL
-#include "world.h"
+#define VOXEL_IMPL
+#include "voxel.h"
 
 #define COMPONENT_IMPL
 #include "component.h"
@@ -49,3 +49,6 @@
 
 #define APP_IMPL
 #include "app.h"
+
+
+
