@@ -379,7 +379,7 @@ GS_API_DECL void app_init()
 
     // Allocate entity and attach component
     uint32_t ent = entities_allocate(&app->core->entities);
-    entities_add_component(&app->core->entities, ent, my_comp_t, obj_ctor(my_comp_t)); 
+    entities_add_component(&app->core->entities, ent, my_comp_t, obj_ctor(my_comp_t, 3.145f)); 
 } 
 
 GS_API_DECL void app_update()

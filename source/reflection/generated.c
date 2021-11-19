@@ -190,13 +190,13 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 
 // == my_comp_t API == //
 
-GS_API_DECL my_comp_t my_comp_t_ctor(void)
+GS_API_DECL my_comp_t my_comp_t_ctor(float v)
 {
 	my_comp_t _obj = gs_default_val();
 	my_comp_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(my_comp_t);
 	{
-            this->f_val = 3.145f;
+            this->f_val = v;
         }
 	return _obj;
 }
@@ -204,16 +204,25 @@ GS_API_DECL my_comp_t my_comp_t_ctor(void)
 GS_API_DECL void my_comp_t_dtor(my_comp_t* obj)
 {
 	my_comp_t* this = obj;
+	{
+        // Your function here...
+    }
 }
 GS_API_DECL gs_result my_comp_t_serialize(gs_byte_buffer_t* buffer, const object_t* in)
 {
 	my_comp_t* this = in;
-	return GS_RESULT_INCOMPLETE;
+	{ 
+        // Your function here...
+    }
+	return GS_RESULT_SUCCESS;
 }
 GS_API_DECL gs_result my_comp_t_deserialize(gs_byte_buffer_t* buffer, object_t* out)
 {
 	my_comp_t* this = out;
-	return GS_RESULT_INCOMPLETE;
+	{
+        // Your function here...
+    }
+	return GS_RESULT_SUCCESS;
 }
 
 // == texture_t API == //
