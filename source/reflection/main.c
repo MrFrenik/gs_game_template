@@ -130,13 +130,15 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
 	gs_token_t t = lex->current_token;
 	
 	// Ignore this field
-	if (gs_token_compare_text(&t, "ignore"))
+    /*
+	if (!gs_token_compare_text(&t, "field"))
 	{
 		// Move to the semicolon
 		gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON);
 	}
+    */
 	// Parse 'BASE' tag
-	else if (gs_token_compare_text(&t, "base"))
+	if (gs_token_compare_text(&t, "base"))
 	{
 		// Get opening paren
 		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false); 
@@ -350,17 +352,21 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
         } 
     }
 	// Otherwise, it's a field
-	else
+    else if (gs_token_compare_text(&t, "field")) 
 	{
 		meta_prop_t p = {0};
 		bool set_type = false;
+
+        // Skip to end of field param
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_RPAREN)) gs_assert(false);
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) gs_assert(false); 
 
 		// Need to deal with any qualifier shit 
 		if (gs_token_compare_text(&t, "const"))
 		{
 			p.is_const_ptr = true;
 			if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) gs_assert(false);
-		}
+		} 
 
 		// Get next field, require identifier for field type
 		t = lex->current_token;
@@ -390,6 +396,11 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
 		// Add to class properties
 		gs_dyn_array_push(c->properties, p);
 	}
+    else
+    {
+		// Move to the semicolon
+		gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON);
+    }
 }
 
 void parse_struct(reflection_data_t* refl, gs_lexer_t* lex)
@@ -505,11 +516,12 @@ void parse_file(reflection_data_t* refl, const char* path)
 {
 	gs_println("generating reflection: %s", path);
 
-    if (gs_string_compare_equal(path, "../source/app.h") || 
-		gs_string_compare_equal(path, "../source/world.h"))
+    /*
+    if (gs_string_compare_equal(path, "../source/app.h"))
 	{
 		return;
 	}
+    */
 
 	char* contents = gs_platform_read_file_contents(path, "r", NULL);
 	if (contents)
@@ -607,15 +619,18 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
         gs_fprintln(fp, "// == %s API == //", name);	
 
+        // Forward decl
+        gs_fprintln(fp, "struct %s;", name);	
+
         // Ctor (have to determine whether or not ctor is available or not)
         {
             const char* params =  c->ctor.params;
-            gs_fprintln(fp, "GS_API_DECL %s %s_ctor(%s);", name, name, params);	
+            gs_fprintln(fp, "GS_API_DECL struct %s %s_ctor(%s);", name, name, params);	
         }
 
         // Dtor
         {
-            gs_fprintln(fp, "GS_API_DECL void %s_dtor(%s* obj);", name, name);	
+            gs_fprintln(fp, "GS_API_DECL void %s_dtor(struct %s* obj);", name, name);	
         }
 
         // Serialize
@@ -632,10 +647,31 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         gs_fprintln(fp, "");	
     }
 
+	gs_fprintln(fp, "#endif // GENERATED_H");	
+
+	// Close the file
+	fclose(fp);
+
+	// Path to write to
+	gs_snprintfc(FPATH, META_STR_MAX, "%sgenerated.c", dir);
+
+	// Open file, then dump meta information
+	fp = fopen(FPATH, "w");
+	if (!fp) 
+	{
+		return;
+	}
+
 	// Implementation
 	gs_fprintln(fp, "\n//============[ Implementation ]==============//\n");	
 
-	gs_fprintln(fp, "#ifdef GENERATED_IMPL\n");	
+	// Write out warning information
+	gs_fprintln(fp, "/*");	
+	gs_fprintln(fp, " * This file has been generated. All modifications will be lost.");	
+	gs_fprintln(fp, "*/");	
+	gs_fprintln(fp, "");	
+
+	// gs_fprintln(fp, "#ifdef GENERATED_IMPL\n");	
 
 	// Register meta information function implementation
 	gs_fprintln(fp, "GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)");	
@@ -892,8 +928,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
     }
 
 	// Footer
-	gs_fprintln(fp, "#endif // GENERATED_IMPL");	
-	gs_fprintln(fp, "#endif // GENERATED_H");	
+	// gs_fprintln(fp, "#endif // GENERATED_IMPL");	
 
 	// Close the file
 	fclose(fp);
