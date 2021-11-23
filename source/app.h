@@ -77,9 +77,9 @@
         {
             gs_command_buffer_t cb;         // Command buffer for rendering
             gs_immediate_draw_t gsi;        // Immediate draw utility
-            entity_manager_t 	entities;   // Entity data
-            asset_manager_t 	assets;     // Asset data
-            meta_t 				meta;       // Reflection data
+            entity_manager_t    entities;   // Entity data
+            asset_manager_t     assets;     // Asset data
+            meta_t              meta;       // Reflection data
             gs_mu_ctx           gmu;        // GUI utility context
         } core_t;
 
@@ -303,60 +303,126 @@
 #define WINDOW_WIDTH  1920
 #define WINDOW_HEIGHT 1080
 
-// Shaders
-#if (defined GS_PLATFORM_WEB || defined GS_PLATFORM_ANDROID)
-    #define GS_GL_VERSION_STR "#version 300 es\n"
-#else
-    #define GS_GL_VERSION_STR "#version 330 core\n"
-#endif 
-
 // App struct declaration 
 typedef struct app_t
 {
     // Core data
-	core_t* core; 
+    core_t* core; 
 
-    // Entity handle
-    uint32_t entity;
+    // Your app data here...
+    uint32_t ent;
 } app_t; 
 
 // Introspected struct
 introspect()
-typedef struct my_comp_t
+typedef struct component_rotation_t
 {
+    // Parent 
     base(component_base_t)
 
-    // Constructor
-    ctor( 
+    // Functions
+
+    /*
+     *  Constructor
+     *  @param: (optional) 
+     *  @return: void
+     */
+    ctor
+    ( 
         // Any parameters for this constructor
-        params(float v)
+        params(float rotation_speed, gs_vec3 rotation_axis),
 
         // Function to be called
-        func({
-            this->f_val = v;
+        func
+        ({
+            gs_println("CTOR");
+            this->rotation_speed = rotation_speed;
+            this->rotation_axis = rotation_axis;
         })
     )
 
-    // Destructor
-    dtor({
-        // Your function here...
+    /*
+     *  Destructor
+     *  @param: component_rotation_t* this 
+     *  @return: void
+     */
+    dtor
+    ({
+        gs_println("DTOR");
     })
 
-    // Serialize
-    serialize({ 
-        // Your function here...
+    /*
+     *  Serialize
+     *  @param: gs_byte_buffer_t* buffer 
+     *  @param: const component_rotation_t* this 
+     *  @return: gs_result
+     */
+    serialize
+    ({ 
+        gs_println("SERIALIZE");
+        gs_byte_buffer_write(buffer, float, this->rotation_speed);
+        return GS_RESULT_SUCCESS;
+    }) 
+
+    /*
+     *  Serialize
+     *  @param: gs_byte_buffer_t* buffer 
+     *  @param: component_rotation_t* this 
+     *  @return: gs_result
+     */
+    deserialize
+    ({
+        gs_println("DESERIALIZE");
+        gs_byte_buffer_read(buffer, float, &this->rotation_speed);
+        return GS_RESULT_SUCCESS;
+    }) 
+
+    /*
+     *  On Create
+     *  @param: component_rotation_t* this 
+     *  @return: void
+     */
+    on_create
+    ({ 
+        gs_println("ON CREATE");
+    }) 
+
+    /*
+     *  On Update
+     *  @param: component_rotation_t* this 
+     *  @return: void
+     */
+    on_update
+    ({ 
+        app_t* app = gs_engine_user_data(app_t); 
+        entity_manager_t* em = &app->core->entities; 
+
+        // Update rotation
+        const float _t = gs_platform_elapsed_time();
+        gs_quat rot = gs_quat_angle_axis(_t * 0.0001f * this->rotation_speed, this->rotation_axis);
+
+        // Get entity for this component
+        uint32_t ent = component_get_entity(this);
+
+        // Get transform component, if found 
+        component_transform_t* tc = entities_get_component(em, ent, component_transform_t);
+
+        // Update rotation of transform 
+        if (tc)
+        { 
+            tc->transform.rotation = rot;
+        }
     })
 
-    // Deserialize
-    deserialize({
-        // Your function here...
-    })
+    // Fields
 
-    // Introspected field data
-    field()
-    float f_val;
+    field(default = 100.f)
+    float rotation_speed;
 
-} my_comp_t;
+    field(default = GS_YAXIS)
+    gs_vec3 rotation_axis; 
+
+} component_rotation_t; 
 
 // Main application interface functions
 GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv);
@@ -370,23 +436,24 @@ GS_API_DECL void app_shutdown();
 
 GS_API_DECL void app_init()
 {
-	// Initialize core
+    // Initialize core
     app_t* app = gs_engine_user_data(app_t); 
-	app->core = core_new(); 
+    app->core = core_new(); 
 
     // Register new component with entity manager
-    entities_register_component(&app->core->entities, my_comp_t);
+    entities_register_component(&app->core->entities, component_rotation_t);
 
-    // Allocate entity and attach component
-    uint32_t ent = entities_allocate(&app->core->entities);
-    entities_add_component(&app->core->entities, ent, my_comp_t, obj_ctor(my_comp_t, 3.145f)); 
+    // Allocate entity and attach necessary components
+    app->ent = entities_allocate(&app->core->entities);
+    entities_add_component(&app->core->entities, app->ent, component_rotation_t, obj_ctor(component_rotation_t, 3.145f, gs_v3(0.f, 1.f, 0.f))); 
+    entities_add_component(&app->core->entities, app->ent, component_transform_t, obj_ctor(component_transform_t, gs_vqs_default())); 
 } 
 
 GS_API_DECL void app_update()
 {
     // Cache app/core pointers
     app_t* app = gs_engine_user_data(app_t);
-	core_t* core = app->core;
+    core_t* core = app->core;
     gs_command_buffer_t* cb = &core->cb;
     gs_immediate_draw_t* gsi = &core->gsi; 
     entity_manager_t* em = &core->entities; 
@@ -399,13 +466,25 @@ GS_API_DECL void app_update()
     // Process input (closing window) 
     if (gs_platform_key_pressed(GS_KEYCODE_ESC)) gs_engine_quit(); 
 
-    // Get entity data
-    my_comp_t* mc = entities_get_component(em, app->entity, my_comp_t);
+    // Update entity manager
+    entities_update(em);
 
-    // Render entity info to screen using gsi
-    gsi_camera2D(gsi);
-    gs_snprintfc(TMP_BUF, 256, "f_val: %.2f", mc->f_val);
-    gsi_text(gsi, 10.f, 30.f, TMP_BUF, NULL, false, 255, 255, 255, 255); 
+    // Get rotation for entity to render
+    component_transform_t* tc = entities_get_component(em, app->ent, component_transform_t);
+
+    // Render entity to screen using gsi
+    gsi_camera3D(gsi); 
+    gsi_depth_enabled(gsi, true);
+    gsi_face_cull_enabled(gsi, true);
+
+    if (tc)
+    {
+        gsi_push_matrix(gsi, GSI_MATRIX_MODELVIEW);
+        gsi_mul_matrix(gsi, gs_vqs_to_mat4(&tc->transform));
+        gsi_sphere(gsi, 0.f, 0.f, 0.f, 0.5f, 255, 255, 255, 255, GS_GRAPHICS_PRIMITIVE_LINES);
+        gsi_pop_matrix(gsi);
+    }
+
     gsi_render_pass_submit(gsi, cb, (gs_color_t){10, 10, 10, 255}); 
     gs_graphics_submit_command_buffer(cb); 
 }
@@ -413,20 +492,20 @@ GS_API_DECL void app_update()
 GS_API_DECL void app_shutdown()
 {
     app_t* app = gs_engine_user_data(app_t); 
-	core_delete(app->core); 
+    core_delete(app->core); 
 }
-		
+        
 GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv)
 {
     return (gs_app_desc_t) 
-	{
-		.window_width = WINDOW_WIDTH,
-		.window_height = WINDOW_HEIGHT,
-		.init = app_init,
-		.update = app_update,
-		.shutdown = app_shutdown,
-		.user_data = gs_malloc_init(app_t)
-	};
+    {
+        .window_width = WINDOW_WIDTH,
+        .window_height = WINDOW_HEIGHT,
+        .init = app_init,
+        .update = app_update,
+        .shutdown = app_shutdown,
+        .user_data = gs_malloc_init(app_t)
+    };
 } 
 
 #endif  // APP_IMPL

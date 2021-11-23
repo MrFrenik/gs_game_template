@@ -7,26 +7,22 @@
 
 #define META_STR_MAX 1024 
 
-typedef struct ctor_t
-{
-    char func[META_STR_MAX * 4];
-    char params[META_STR_MAX];
-} ctor_t; 
+#define FUNC_DECL(NAME)\
+    typedef struct NAME\
+    {\
+        char func[META_STR_MAX * 4];\
+        char params[META_STR_MAX];\
+    } NAME;
 
-typedef struct dtor_t
-{
-    char func[META_STR_MAX * 4];
-} dtor_t; 
-
-typedef struct serialize_t
-{
-    char func[META_STR_MAX * 4];
-} serialize_t; 
-
-typedef struct deserialize_t
-{
-    char func[META_STR_MAX * 4];
-} deserialize_t; 
+FUNC_DECL(ctor_t);
+FUNC_DECL(dtor_t);
+FUNC_DECL(serialize_t);
+FUNC_DECL(deserialize_t); 
+FUNC_DECL(on_create_t); 
+FUNC_DECL(on_start_t); 
+FUNC_DECL(on_stop_t); 
+FUNC_DECL(on_update_t); 
+FUNC_DECL(on_destroy_t); 
 
 typedef struct vtable_func_t
 {
@@ -68,6 +64,11 @@ typedef struct meta_class_t
     dtor_t dtor;
     serialize_t serialize;
     deserialize_t deserialize;
+    on_create_t on_create;
+    on_start_t on_start;
+    on_stop_t on_stop;
+    on_update_t on_update;
+    on_destroy_t on_destroy;
 } meta_class_t;
 
 typedef struct reflection_data_t
@@ -83,27 +84,40 @@ void reflection_data_init(reflection_data_t* refl)
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("u8"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U8));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("int8_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S8));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("s8"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S8));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("i8"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S8));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("uint16_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U16));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("u16"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U16));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("int16_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S16));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("i16"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S16));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("s16"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S16));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("uint32_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U32));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("u32"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U32));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("int32_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S32));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("i32"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S32));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("s32"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S32));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("uint64_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U64));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("u64"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_U64));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("int64_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S64));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("s64"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S64));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("i64"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_S64));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("float"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F32));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("f32"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F32));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("double"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F64));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("f64"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_F64));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vec2"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC2));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("v2"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC2));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vec3"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC3));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("v3"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC3));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vec4"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC4));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("v4"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VEC4));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_mat4"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_MAT4));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("mat4"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_MAT4));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_quat"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_QUAT));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("quat"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_QUAT));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_vqs"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VQS));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("vqs"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_VQS));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("gs_uuid_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_UUID));
+	gs_hash_table_insert(refl->type2info, gs_hash_str64("uuid"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_UUID));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("size_t"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_SIZE_T));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("char"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_STR));
 	gs_hash_table_insert(refl->type2info, gs_hash_str64("void"), gs_to_str(GS_META_PROPERTY_TYPE_INFO_OBJ));
@@ -129,14 +143,6 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
 {
 	gs_token_t t = lex->current_token;
 	
-	// Ignore this field
-    /*
-	if (!gs_token_compare_text(&t, "field"))
-	{
-		// Move to the semicolon
-		gs_lexer_find_next_token_type(lex, GS_TOKEN_SEMI_COLON);
-	}
-    */
 	// Parse 'BASE' tag
 	if (gs_token_compare_text(&t, "base"))
 	{
@@ -307,6 +313,141 @@ void parse_struct_field(reflection_data_t* refl, meta_class_t* c, gs_lexer_t* le
         const size_t len = t.text - _c.text;
         gs_assert(len < META_STR_MAX);
         memcpy(c->deserialize.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    }
+    // On Create
+    else if (gs_token_compare_text(&t, "on_create"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->on_create.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    }
+    // On Start
+    else if (gs_token_compare_text(&t, "on_start"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->on_start.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    }
+    // On Stop
+    else if (gs_token_compare_text(&t, "on_stop"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->on_stop.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    }
+    // On Update
+    else if (gs_token_compare_text(&t, "on_update"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->on_update.func, _c.text, len); 
+
+        // Get next token afterwards to move forward 
+        t = lex->next_token(lex);
+    }
+    // On Destroy
+    else if (gs_token_compare_text(&t, "on_destroy"))
+    {
+		if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LPAREN)) gs_assert(false);
+
+        // Continue until right paren is found to close
+        uint32_t pc = 1; 
+        gs_token_t _c = lex->next_token(lex);
+        do
+        { 
+            t = lex->next_token(lex); 
+            switch (t.type)
+            {
+                default: break;
+                case GS_TOKEN_LPAREN: pc++; break;
+                case GS_TOKEN_RPAREN: pc--;
+            } 
+        } while (pc);
+
+        // Copy text now for params
+        const size_t len = t.text - _c.text;
+        gs_assert(len < META_STR_MAX);
+        memcpy(c->on_destroy.func, _c.text, len); 
 
         // Get next token afterwards to move forward 
         t = lex->next_token(lex);
@@ -619,29 +760,80 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
         gs_fprintln(fp, "// == %s API == //", name);	
 
+        // Format
+        gs_fprintln(fp, "");
+
         // Forward decl
         gs_fprintln(fp, "struct %s;", name);	
 
-        // Ctor (have to determine whether or not ctor is available or not)
+        // Class name hashed id
+        const uint64_t id = gs_hash_str64(name);
+
+        // Defines
         {
+            // Ctor
             const char* params =  c->ctor.params;
-            gs_fprintln(fp, "GS_API_DECL struct %s %s_ctor(%s);", name, name, params);	
-        }
+            gs_fprintln(fp, "#define %s_ctor obj_ctor_%zu", name, id);	
 
-        // Dtor
-        {
-            gs_fprintln(fp, "GS_API_DECL void %s_dtor(struct %s* obj);", name, name);	
-        }
+            // Dtor
+            gs_fprintln(fp, "#define %s_dtor obj_dtor_%zu", name, id);	
 
-        // Serialize
-        {
-            gs_fprintln(fp, "GS_API_DECL gs_result %s_serialize(gs_byte_buffer_t* buffer, const object_t* in);", name, name);	
-        }
+            // Serialize
+            gs_fprintln(fp, "#define %s_serialize obj_serialize_%zu", name, id);	
 
-        // Deserialize
-        {
-            gs_fprintln(fp, "GS_API_DECL gs_result %s_deserialize(gs_byte_buffer_t* buffer, object_t* out);", name, name);	
+            // Deserialize
+            gs_fprintln(fp, "#define %s_deserialize obj_deserialize_%zu", name, id);	
+
+            // On Create
+            gs_fprintln(fp, "#define %s_on_create obj_on_create_%zu", name, id);	
+
+            // On Start
+            gs_fprintln(fp, "#define %s_on_start obj_on_start_%zu", name, id);	
+
+            // On Stop
+            gs_fprintln(fp, "#define %s_on_stop obj_on_stop_%zu", name, id);	
+
+            // On Update
+            gs_fprintln(fp, "#define %s_on_update obj_on_update_%zu", name, id);	
+
+            // On Destroy
+            gs_fprintln(fp, "#define %s_on_destroy obj_on_destroy_%zu", name, id);	
         }
+        
+        // Format
+        gs_fprintln(fp, "");
+
+        // Functions
+        {
+            // Ctor
+            const char* params =  c->ctor.params;
+            gs_fprintln(fp, "GS_API_DECL struct %s obj_ctor_%zu(%s);", name, id, params);	
+
+            // Dtor
+            gs_fprintln(fp, "GS_API_DECL void obj_dtor_%zu(struct object_t* obj);", id);	
+
+            // Serialize
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_serialize_%zu(gs_byte_buffer_t* buffer, const object_t* in);", id);	
+
+            // Deserialize
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_deserialize_%zu(gs_byte_buffer_t* buffer, object_t* out);", id);	
+
+            // On Create
+            gs_fprintln(fp, "GS_API_DECL void obj_on_create_%zu(object_t* in);", id);	
+
+            // On Start
+            gs_fprintln(fp, "GS_API_DECL void obj_on_start_%zu(object_t* in);", id);	
+
+            // On Stop
+            gs_fprintln(fp, "GS_API_DECL void obj_on_stop_%zu(object_t* in);", id);	
+
+            // On Update
+            gs_fprintln(fp, "GS_API_DECL void obj_on_update_%zu(object_t* in);", id);	
+
+            // On Destroy
+            gs_fprintln(fp, "GS_API_DECL void obj_on_destroy_%zu(object_t* in);", id);	
+        } 
+
 
         // Formatting
         gs_fprintln(fp, "");	
@@ -734,6 +926,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 			const char* name = c->name;
 			const char* base = c->base;
 			uint32_t prop_cnt = gs_dyn_array_size(c->properties);
+            const uint64_t id = gs_hash_str64(name);
 
             // Write out vtable to pass in
 			gs_fprintln(fp, "\t// vtable");	
@@ -744,6 +937,17 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
                 gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(%s)), (void*)%s);", name, f->name, f->func_ptr);	
             }
 
+            // Standard VTable functions
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_create)), (void*)obj_on_create_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_start)), (void*)obj_on_start_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_stop)), (void*)obj_on_stop_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_update)), (void*)obj_on_update_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_destroy)), (void*)obj_on_destroy_%zu);", name, id);	
+            
             // Formatting
 			gs_fprintln(fp, "");	
 
@@ -819,11 +1023,12 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         gs_hash_table_iter_advance(refl->classes, it)
     )
     {
-        meta_class_t* c = gs_hash_table_iter_getp(refl->classes, it);
+        meta_class_t* c = gs_hash_table_iter_getp(refl->classes, it); 
 
         const char* name = c->name;
         const char* base = c->base;
         uint32_t prop_cnt = gs_dyn_array_size(c->properties);
+        const uint64_t id = gs_hash_str64(name);
 
         gs_fprintln(fp, "// == %s API == //\n", name);	
 
@@ -832,7 +1037,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             const char* params =  c->ctor.params;
             const char* func = c->ctor.func;
 
-            gs_fprintln(fp, "GS_API_DECL %s %s_ctor(%s)", name, name, params);	
+            gs_fprintln(fp, "GS_API_DECL %s obj_ctor_%zu(%s)", name, id, params);	
             gs_fprintln(fp, "{"); 
 
             gs_fprintln(fp, "\t%s _obj = gs_default_val();", name);	
@@ -860,32 +1065,33 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->dtor.func;
 
-            gs_fprintln(fp, "GS_API_DECL void %s_dtor(%s* obj)", name, name);	
+            gs_fprintln(fp, "GS_API_DECL void obj_dtor_%zu(object_t* obj)", id);	
             gs_fprintln(fp, "{"); 
-
-            gs_fprintln(fp, "\t%s* this = obj;", name);	
             
             // Print the function box
             if (*func)
             {
+                gs_fprintln(fp, "\t%s* this = (%s*)obj;", name, name);	
                 gs_fprintln(fp, "\t%s", func);	
             } 
 
             gs_fprintln(fp, "}");	
         }
 
+        // Formatting
+        gs_fprintln(fp, "");	
+
         // Serialize
         {
             const char* func = c->serialize.func;
 
-            gs_fprintln(fp, "GS_API_DECL gs_result %s_serialize(gs_byte_buffer_t* buffer, const object_t* in)", name);	
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_serialize_%zu(gs_byte_buffer_t* buffer, const object_t* in)", id);	
             gs_fprintln(fp, "{"); 
-
-            gs_fprintln(fp, "\t%s* this = in;", name);	
             
             // Print the function box
             if (*func)
             {
+                gs_fprintln(fp, "\tconst %s* this = (const %s*)in;", name, name);	
                 gs_fprintln(fp, "\t%s", func);	
                 gs_fprintln(fp, "\treturn GS_RESULT_SUCCESS;");	
             } 
@@ -898,19 +1104,20 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             gs_fprintln(fp, "}");	
         }
 
+        // Formatting
+        gs_fprintln(fp, "");	
 
         // Deserialize
         {
             const char* func = c->deserialize.func;
 
-            gs_fprintln(fp, "GS_API_DECL gs_result %s_deserialize(gs_byte_buffer_t* buffer, object_t* out)", name);	
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_deserialize_%zu(gs_byte_buffer_t* buffer, object_t* out)", id);	
             gs_fprintln(fp, "{"); 
 
-            gs_fprintln(fp, "\t%s* this = out;", name);	
-            
             // Print the function box
             if (*func)
             {
+                gs_fprintln(fp, "\t%s* this = (%s*)out;", name, name);	
                 gs_fprintln(fp, "\t%s", func);	
                 gs_fprintln(fp, "\treturn GS_RESULT_SUCCESS;");	
             } 
@@ -925,10 +1132,107 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
         // Formatting
         gs_fprintln(fp, "");	
-    }
 
-	// Footer
-	// gs_fprintln(fp, "#endif // GENERATED_IMPL");	
+        // On Create 
+        {
+            const char* func = c->on_create.func;
+
+            gs_fprintln(fp, "GS_API_DECL void obj_on_create_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "{"); 
+            
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s* this = (%s*)obj;", name, name);	
+                gs_fprintln(fp, "\t%s", func);	
+            } 
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+
+        // On Start 
+        {
+            const char* func = c->on_start.func;
+
+            gs_fprintln(fp, "GS_API_DECL void obj_on_start_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "{"); 
+
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s* this = (%s*)obj;", name, name);	
+                gs_fprintln(fp, "\t%s", func);	
+            } 
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+
+        // On Stop 
+        {
+            const char* func = c->on_stop.func;
+
+            gs_fprintln(fp, "GS_API_DECL void obj_on_stop_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "{"); 
+            
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s* this = (%s*)obj;", name, name);	
+                gs_fprintln(fp, "\t%s", func);	
+            } 
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+
+        // On Update 
+        {
+            const char* func = c->on_update.func;
+
+            gs_fprintln(fp, "GS_API_DECL void obj_on_update_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "{"); 
+            
+            // Print the function box
+            if (*func)
+            { 
+                gs_fprintln(fp, "\t%s* this = (%s*)obj;", name, name);	
+                gs_fprintln(fp, "\t%s", func);	
+            } 
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+
+        // On Destroy 
+        {
+            const char* func = c->on_destroy.func;
+
+            gs_fprintln(fp, "GS_API_DECL void obj_on_destroy_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "{"); 
+            
+            // Print the function box
+            if (*func)
+            { 
+                gs_fprintln(fp, "\t%s* this = (%s*)obj;", name, name);	
+                gs_fprintln(fp, "\t%s", func);	
+            } 
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // Formatting
+        gs_fprintln(fp, "");	
+    } 
 
 	// Close the file
 	fclose(fp);

@@ -78,7 +78,12 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define field(...) gs_empty_instruction()
 #define serialize(...) gs_empty_instruction()
 #define deserialize(...) gs_empty_instruction()
-#define cast(A, B) ((B*)(A))
+#define on_create(...)  gs_empty_instruction()
+#define on_start(...)   gs_empty_instruction()
+#define on_stop(...)    gs_empty_instruction()
+#define on_update(...)  gs_empty_instruction()
+#define on_destroy(...) gs_empty_instruction() 
+#define cast(A, B) ((B*)(A)) 
 
 // Reflection defines
 #define vtable(...) /* __VA_ARGS__ */
@@ -88,7 +93,7 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define obj_id(OBJ)                  (cast((OBJ), object_t)->cls_id)  // Get object class id from instance
 #define obj_sid(T)                   gs_hash_str64(gs_to_str(T))    // Get object class id from static type
 #define obj_vtable_w_id(ID)          (&(gs_hash_table_getp(meta_get_instance()->registry.classes, ID)->vtable)) // Get vtable for class
-#define obj_func_w_id(ID, NAME)      gs_meta_func_getp_w_id(&meta_get_instance()->registry, ID, NAME) // Get function in vtable based on name
+#define obj_func_w_id(ID, NAME)      gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), NAME) // Get function in vtable based on name
 #define obj_new(T)                   _obj_new_internal(obj_sid(T)) // Heap allocate object of type based on type
 #define obj_newid(ID)                _obj_new_internal(ID) // Heap allocate object based on cls id
 
@@ -96,6 +101,16 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define obj_dtor(T, OBJ)                T##_dtor(OBJ) 
 #define obj_serialize(T, BUFFER, OBJ)   T##_serialize(BUFFER, OBJ)
 #define obj_deserialize(T, BUFFER, OBJ) T##_deserialize(BUFFER, OBJ)
+
+typedef void (*obj_dtor_func)(object_t* obj);
+typedef void (*obj_on_create_func)(object_t* obj);
+typedef void (*obj_on_start_func)(object_t* obj);
+typedef void (*obj_on_stop_func)(object_t* obj);
+typedef void (*obj_on_update_func)(object_t* obj);
+typedef void (*obj_on_destroy_func)(object_t* obj);
+
+#define obj_ctor_w_id(ID, OBJ, ...)     gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), obj_ctor)(__VA_ARGS__)
+#define obj_dtor_w_id(ID)               gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), obj_dtor) 
 
 typedef struct meta_t
 {
@@ -189,7 +204,21 @@ GS_API_DECL void obj_dump(meta_t* meta, void* obj, gs_meta_class_t* cls)
 			{
 				uint32_t* v = gs_meta_getvp(obj, uint32_t, prop);
 				gs_println("\t%s (%s): %zu", prop->name, prop->type.name, *v);
-			} break;
+			} break; 
+
+			case GS_META_PROPERTY_TYPE_VEC3:
+			{
+				gs_vec3* v = gs_meta_getvp(obj, gs_vec3, prop);
+				gs_println("\t%s (%s): <%.2f, %.2f, %.2f>", prop->name, prop->type.name, v->x, v->y, v->z);
+			} break; 
+
+            case GS_META_PROPERTY_TYPE_VQS: 
+            {
+				gs_vqs* v = gs_meta_getvp(obj, gs_vqs, prop);
+                gs_quat* r = &v->rotation;
+				gs_println("\t%s (%s): <%.2f, %.2f, %.2f, %.2f>", prop->name, prop->type.name,
+                        r->x, r->y, r->z, r->w);
+            } break;
 
 			case GS_META_PROPERTY_TYPE_OBJ:
 			{

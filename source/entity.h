@@ -45,37 +45,36 @@ typedef struct component_data_t
     gs_dyn_array(uint32_t) indices;             // Slot array indices
 	void* data;                                 // Pointer to internal slot array of component data
     size_t data_size;                           // Individual unit of data
+    uint64_t cid;                               // Component id
 } component_data_t;
 
 // Going to need to macro-fy the raw component data
 
 gs_force_inline
-void __gs_slot_array_erase_func(gs_dyn_array(uint32_t) indices, void* data, uint32_t hndl, size_t val_len)
+void _gs_slot_array_erase_func(gs_dyn_array(uint32_t) indices, void* data, uint32_t hndl, size_t val_len)
 { 
-    uint32_t __H0 = hndl;
-
-    gs_println("sz: %zu", gs_dyn_array_size(data));
+    uint32_t _H0 = hndl; 
 
     if (gs_dyn_array_size(data) == 1) 
     {
         gs_dyn_array_clear(data);
         gs_dyn_array_clear(indices);
     } 
-    else if (__H0 >= gs_dyn_array_size(indices) || indices[__H0] == GS_SLOT_ARRAY_INVALID_HANDLE)
+    else if (_H0 >= gs_dyn_array_size(indices) || indices[_H0] == GS_SLOT_ARRAY_INVALID_HANDLE)
     {
-        gs_println("Warning: Attempting to erase invalid slot array handle (%zu)", __H0);
+        gs_println("Warning: Attempting to erase invalid slot array handle (%zu)", _H0);
     } 
     else 
     {
-        uint32_t __OG_DATA_IDX = indices[__H0];
+        uint32_t _OG_DATA_IDX = indices[_H0];
 
         // Iterate through handles until last index of data found
-        uint32_t __H = 0;
+        uint32_t _H = 0;
         for (uint32_t i = 0; i < gs_dyn_array_size(indices); ++i)
         {
             if (indices[i] == gs_dyn_array_size(data) - 1)
             {
-                __H = i;
+                _H = i;
                 break;
             }
         }
@@ -83,7 +82,7 @@ void __gs_slot_array_erase_func(gs_dyn_array(uint32_t) indices, void* data, uint
         // Swap and pop data
         uint32_t bidx = gs_dyn_array_size(data) - 1;
         memcpy(
-            (uint8_t*)(data) + __OG_DATA_IDX * val_len, 
+            (uint8_t*)(data) + _OG_DATA_IDX * val_len, 
             (uint8_t*)(data) + bidx * val_len,
             val_len
         ); 
@@ -93,41 +92,50 @@ void __gs_slot_array_erase_func(gs_dyn_array(uint32_t) indices, void* data, uint
         }
     
         // Point new handle, Set og handle to invalid
-        indices[__H] = __OG_DATA_IDX;
-        indices[__H0] = GS_SLOT_ARRAY_INVALID_HANDLE;
+        indices[_H] = _OG_DATA_IDX;
+        indices[_H0] = GS_SLOT_ARRAY_INVALID_HANDLE;
     } 
 }
 
 gs_force_inline
-void* __gs_slot_array_get_func(gs_dyn_array(uint32_t) indices, void** data, uint32_t hndl, size_t val_len)
+void* _gs_slot_array_get_func(gs_dyn_array(uint32_t) indices, void** data, uint32_t hndl, size_t val_len)
 {
     return (((uint8_t*)(*data) + indices[hndl] * val_len));
 }
 
 gs_force_inline
-void __component_data_entity_add(component_data_t* cd, uint32_t ent_hndl, void* comp_data)
+void _component_data_entity_add(component_data_t* cd, uint32_t ent_hndl, void* comp_data)
 {
     uint32_t idx = gs_slot_array_insert_func(&cd->indices, &cd->data, comp_data, cd->data_size, NULL);
     gs_hash_table_insert(cd->lookup, ent_hndl, idx);
 }
 
 gs_force_inline
-void __component_data_entity_remove(component_data_t* cd, uint32_t ent_hndl)
+void* _component_data_entity_get(component_data_t* cd, uint32_t ent_hndl)
+{
+    if (!gs_hash_table_empty(cd->lookup) && gs_hash_table_key_exists(cd->lookup, ent_hndl))
+    {
+        uint32_t idx = gs_hash_table_get(cd->lookup, ent_hndl);
+        if (cd->data && cd->indices && idx < gs_dyn_array_size(cd->indices) && idx != GS_SLOT_ARRAY_INVALID_HANDLE)
+        {
+            return (((uint8_t*)cd->data) + cd->indices[idx] * cd->data_size);
+        }
+    }
+    return NULL;
+} 
+
+gs_force_inline
+void _component_data_entity_remove(component_data_t* cd, uint32_t ent_hndl, obj_dtor_func dtor)
 {
     uint32_t idx = gs_hash_table_get(cd->lookup, ent_hndl);
-    __gs_slot_array_erase_func(cd->indices, cd->data, idx, cd->data_size);
+    component_base_t* cb = (component_base_t*)(((uint8_t*)cd->data) + cd->indices[idx] * cd->data_size);
+    (*dtor)(cb);
+    _gs_slot_array_erase_func(cd->indices, cd->data, idx, cd->data_size);
     gs_hash_table_erase(cd->lookup, ent_hndl);
 } 
 
 gs_force_inline
-void* __component_data_entity_get(component_data_t* cd, uint32_t ent_hndl)
-{
-    uint32_t idx = gs_hash_table_get(cd->lookup, ent_hndl);
-    return (((uint8_t*)cd->data) + cd->indices[idx] * cd->data_size);
-}
-
-gs_force_inline
-void* __component_data_entity_has(component_data_t* cd, uint32_t ent_hndl)
+void* _component_data_entity_has(component_data_t* cd, uint32_t ent_hndl)
 {
     return gs_hash_table_key_exists(cd->lookup, ent_hndl);
 }
@@ -155,8 +163,10 @@ typedef struct entity_manager_t
 GS_API_DECL uint32_t entities_allocate(entity_manager_t* entities);
 GS_API_DECL void entities_deallocate(entity_manager_t* entities, uint32_t hndl);
 GS_API_DECL bool _entities_has_component_internal(entity_manager_t* entities, uint64_t cid, entity_handle_t ent);
-GS_API_DECL void entities_remove_component_wid(entity_manager_t* entities, uint32_t hndl, uint32_t component_id);
 GS_API_DECL void entities_free(entity_manager_t* entities); 
+GS_API_DECL bool entities_entity_is_valid(entity_manager_t* entities, uint32_t hndl); 
+GS_API_DECL void entities_remove_component_w_id(entity_manager_t* entities, uint32_t hndl, uint64_t component_id);
+GS_API_DECL void entities_update(entity_manager_t* entities);
 
 #define entities_register_component(ENTITIES, T)\
 	do {\
@@ -165,6 +175,7 @@ GS_API_DECL void entities_free(entity_manager_t* entities);
 		{\
 			component_data_t* cd = (component_data_t*)gs_malloc_init(component_data_t);\
             cd->data_size = sizeof(T);\
+            cd->cid = obj_sid(T);\
 			gs_hash_table_insert((ENTITIES)->components, id, cd);\
 		}\
 	} while (0)
@@ -174,44 +185,47 @@ GS_API_DECL void entities_free(entity_manager_t* entities);
 
 #define entities_add_component(ENTITIES, HNDL, T, ...)\
     do {\
-		entity_manager_t* __ENTS = (ENTITIES);\
-        entity_t* __ENT = gs_slot_array_getp(__ENTS->entities, (HNDL));\
-        uint64_t __ID = obj_sid(T);\
-        component_data_t* __CD = gs_hash_table_get(__ENTS->components, __ID);\
-        if (!gs_hash_table_exists(__CD->lookup, (HNDL)))\
+		entity_manager_t* _ENTS = (ENTITIES);\
+        entity_t* _ENT = gs_slot_array_getp(_ENTS->entities, (HNDL));\
+        uint64_t _ID = obj_sid(T);\
+        component_data_t* _CD = gs_hash_table_get(_ENTS->components, _ID);\
+        if (!gs_hash_table_exists(_CD->lookup, (HNDL)))\
         {\
-            T __COMP = __VA_ARGS__;\
-            __component_data_entity_add(__CD, (HNDL), &__COMP);\
-            gs_dyn_array_push(__ENT->components, __ID);\
+            T _COMP = __VA_ARGS__;\
+            obj_id(&_COMP) = _ID;\
+            _COMP._base.entity = (HNDL);\
+            T##_on_create(&_COMP);\
+            _component_data_entity_add(_CD, (HNDL), &_COMP);\
+            gs_dyn_array_push(_ENT->components, _ID);\
         }\
-    } while (0)
+    } while (0) 
 
 #define entities_remove_component(ENTITIES, HNDL, T)\
     do {\
-		entity_manager_t* __ENTS = (ENTITIES);\
-        entity_t* __ENT = gs_slot_array_getp(__ENTS->entities, HNDL);\
-        uint64_t __ID = obj_sid(T);\
-        component_data_t* __CD = gs_hash_table_get(__ENTS->components, __ID);\
-        __component_data_entity_remove(__CD, HNDL);\
-        int32_t __IDX = -1;\
-        for (uint32_t __I = 0; __I < __ENT->components ; ++__I)\
+		entity_manager_t* _ENTS = (ENTITIES);\
+        entity_t* _ENT = gs_slot_array_getp(_ENTS->entities, HNDL);\
+        uint64_t _ID = obj_sid(T);\
+        component_data_t* _CD = gs_hash_table_get(_ENTS->components, _ID);\
+        obj_dtor_func _DTOR = T##_dtor;\
+        _component_data_entity_remove(_CD, HNDL, _DTOR);\
+        int32_t _IDX = -1;\
+        for (uint32_t _I = 0; _I < _ENT->components ; ++_I)\
         {\
-            if (__ENT->components[__I] == __ID)\
+            if (_ENT->components[_I] == _ID)\
             {\
-                __IDX = __I;\
+                _IDX = _I;\
                 break;\
             }\
         }\
-        if (__IDX != -1)\
+        if (_IDX != -1)\
         {\
-            __ENT->components[__IDX] = gs_dyn_array_back(__ENT->components);\
-            gs_dyn_array_pop(__ENT->components);\
+            _ENT->components[_IDX] = gs_dyn_array_back(_ENT->components);\
+            gs_dyn_array_pop(_ENT->components);\
         }\
     } while (0)
 
 #define entities_get_component(ENTITIES, HNDL, T)\
-	((ENTITIES)->cd = gs_hash_table_get((ENTITIES)->components, obj_sid(T)),\
-     (T*)(__component_data_entity_get((ENTITIES)->cd, (HNDL)))) 
+    _entities_get_component_internal((ENTITIES), (HNDL), obj_sid(T)) 
 
 #ifdef ENTITY_IMPL
 
@@ -225,29 +239,64 @@ GS_API_DECL uint32_t entities_allocate(entity_manager_t* entities)
 
 GS_API_DECL void entities_deallocate(entity_manager_t* entities, uint32_t hndl)
 { 
-    // Free all component data
-    for (uint32_t i = 0; i < gs_dyn_array_size(entities->components); ++i)
+    // Get raw entity
+    entity_t* ent = gs_slot_array_getp(entities->entities, hndl);
+
+    if (ent)
     {
-        // TODO(john): Fill this out
-    }
+        for (uint32_t i = 0; i < gs_dyn_array_size(ent->components); ++i) 
+        {
+            entities_remove_component_w_id(entities, hndl, ent->components[i], false);
+        }
+    } 
 
     // Erase entity
     gs_slot_array_erase(entities->entities, hndl);
 }
 
-GS_API_DECL bool _entities_has_component_internal(entity_manager_t* entities, uint64_t cid, entity_handle_t hndl)
+GS_API_DECL bool entities_entity_is_valid(entity_manager_t* entities, uint32_t hndl)
+{
+    return gs_slot_array_handle_valid(entities->entities, hndl);
+} 
+
+GS_API_DECL bool _entities_has_component_internal(entity_manager_t* entities, uint64_t cid, uint32_t hndl)
 {
 	component_data_t* cd = gs_hash_table_get(entities->components, cid);
 	return gs_hash_table_exists(cd->lookup, hndl);
 }
 
-GS_API_DECL void entities_remove_component_wid(entity_manager_t* entities, uint32_t hndl, uint32_t component_id) 
+GS_API_DECL component_base_t* _entities_get_component_internal(entity_manager_t* entities, uint32_t hndl, uint64_t cid)
+{
+    if (!entities_entity_is_valid(entities, hndl))
+    {
+        return NULL;
+    }
+
+    component_data_t* cd = gs_hash_table_get(entities->components, cid);
+    return _component_data_entity_get(cd, hndl);
+}
+
+
+GS_API_DECL void entities_remove_component_w_id(entity_manager_t* entities, uint32_t hndl, uint64_t component_id) 
 {
     entity_t* e = gs_slot_array_getp(entities->entities, hndl); 
     component_data_t* cd = gs_hash_table_get(entities->components, component_id); 
-
-    // Need to have the actual type from this somehow, so I can cast the slot array appropriately...
-    // TODO(john): Fill this out
+    obj_dtor_func dtor = obj_func_w_id(component_id, obj_dtor);
+    _component_data_entity_remove(cd, hndl, dtor);
+    int32_t idx = -1;
+    for (uint32_t i = 0; i < e->components; ++i)
+    {
+        if (e->components[i] == component_id)
+        {
+            idx = i;
+            break;\
+        }
+    }
+    if (idx != -1)
+    {
+        e->components[idx] = gs_dyn_array_back(e->components);
+        gs_dyn_array_pop(e->components);
+    }
 }
 
 GS_API_DECL void entities_free(entity_manager_t* entities)
@@ -275,6 +324,36 @@ GS_API_DECL void entities_free(entity_manager_t* entities)
         gs_dyn_array_free(gs_slot_array_iter_getp(entities->entities, it)->components);
     } 
     gs_slot_array_free(entities->entities);
+}
+
+GS_API_DECL void entities_update(entity_manager_t* entities)
+{
+    // Iterate through all component data, then update (this will be somewhat slow)
+    for (
+        gs_hash_table_iter it = gs_hash_table_iter_new(entities->components);
+        gs_hash_table_iter_valid(entities->components, it);
+        gs_hash_table_iter_advance(entities->components, it)
+    )
+    {
+        component_data_t* cd = gs_hash_table_iter_get(entities->components, it); 
+
+        // Get update function for component data 
+        obj_on_update_func update = obj_func_w_id(cd->cid, obj_on_update);
+
+        // Get slot array iterator
+        for (
+            gs_slot_array_iter sait = _gs_slot_array_iter_find_first_valid_index(cd->indices);
+            (sait < gs_dyn_array_size(cd->indices) && cd->indices[sait] != GS_SLOT_ARRAY_INVALID_HANDLE); 
+            _gs_slot_array_iter_advance_func(cd->indices, &sait)
+        )
+        { 
+            // Grab pointer to component base 
+            component_base_t* cb = (component_base_t*)(((uint8_t*)cd->data) + cd->indices[sait] * cd->data_size); 
+
+            // Call update
+            (*update)(cb);
+        } 
+    }
 }
 
 #endif // ENTITY_IMPL

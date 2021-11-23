@@ -43,7 +43,27 @@ introspect()
 typedef struct component_base_t
 {
     base(object_t) 
+
+    field()
+    uint32_t entity;
 } component_base_t;
+
+#define comp_on_create(T, COMP)\
+    T##_on_create((COMP))
+
+#define comp_on_start(T, COMP)\
+    T##_on_start((COMP))
+
+#define comp_on_stop(T, COMP)\
+    T##_on_stop((COMP))
+
+#define comp_on_update(T, COMP)\
+    T##_on_update((COMP))
+
+#define comp_on_destroy(T, COMP)\
+    T##_on_destroy((COMP))
+
+GS_API_DECL uint32_t component_get_entity(component_base_t* base);
 
 introspect()
 typedef struct component_transform_t
@@ -51,9 +71,9 @@ typedef struct component_transform_t
     base(component_base_t)
 
     ctor(
-        params(void),
+        params(gs_vqs xform),
         func({
-            this->transform = gs_vqs_default();
+            this->transform = xform;
         })
     )
 
@@ -85,4 +105,12 @@ typedef struct component_renderable_t
 
 } component_renderable_t; 
 
+#ifdef COMPONENT_IMPL 
+
+GS_API_DECL uint32_t component_get_entity(component_base_t* base)
+{
+    return base->entity;
+}
+
+#endif // COMPONENTIMPL
 #endif // COMPONENT_H
