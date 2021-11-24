@@ -1,0 +1,40 @@
+// simple.sf
+
+pipeline { 
+
+    shader { 
+
+        vertex { 
+
+            attributes {
+                float2 a_position;
+                float2 a_uv;
+            }, 
+
+            out {
+                vec2 uv;
+            },
+
+            code { 
+                gl_Position = vec4(a_position, 0.0, 1.0);
+                uv = vec2(a_uv.x, -a_uv.y);
+            }
+        },
+
+        fragment { 
+
+            uniforms {
+                vec3 u_color;
+                sampler2D u_tex;
+            }, 
+            
+            out {
+                vec4 frag_color;
+            },
+
+            code {
+                frag_color = texture(u_tex, uv) * vec4(u_color, 1.0);
+            }
+        } 
+    } 
+}

@@ -47,11 +47,17 @@ typedef struct object_t
 	uint64_t cls_id;
 } object_t; 
 
-// Useful typedefs
+// Function pointer typedefs
 typedef void (* obj_ctor_func)(object_t* obj, void* args); 
 typedef void (* obj_dtor_func)(object_t* obj); 
-typedef gs_result (* obj_serialize_func)(gs_byte_buffer_t*, object_t*); 
+typedef gs_result (* obj_serialize_func)(gs_byte_buffer_t*, const object_t*); 
 typedef gs_result (* obj_deserialize_func)(gs_byte_buffer_t*, object_t*); 
+typedef void (*obj_dtor_func)(object_t* obj);
+typedef void (*obj_on_create_func)(object_t* obj);
+typedef void (*obj_on_start_func)(object_t* obj);
+typedef void (*obj_on_stop_func)(object_t* obj);
+typedef void (*obj_on_update_func)(object_t* obj);
+typedef void (*obj_on_destroy_func)(object_t* obj);
 
 // Default Functions
 GS_API_DECL gs_result object_serialize_default(gs_byte_buffer_t* buffer, const object_t* in);
@@ -95,19 +101,13 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define obj_vtable_w_id(ID)          (&(gs_hash_table_getp(meta_get_instance()->registry.classes, ID)->vtable)) // Get vtable for class
 #define obj_func_w_id(ID, NAME)      gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), NAME) // Get function in vtable based on name
 #define obj_new(T)                   _obj_new_internal(obj_sid(T)) // Heap allocate object of type based on type
-#define obj_newid(ID)                _obj_new_internal(ID) // Heap allocate object based on cls id
+#define obj_newid(ID)                _obj_new_internal(ID) // Heap allocate object based on cls id 
 
 #define obj_ctor(T, ...)                T##_ctor(__VA_ARGS__) 
+#define obj_newc(T, ...)                (T*)(T##_new(__VA_ARGS__))
 #define obj_dtor(T, OBJ)                T##_dtor(OBJ) 
 #define obj_serialize(T, BUFFER, OBJ)   T##_serialize(BUFFER, OBJ)
 #define obj_deserialize(T, BUFFER, OBJ) T##_deserialize(BUFFER, OBJ)
-
-typedef void (*obj_dtor_func)(object_t* obj);
-typedef void (*obj_on_create_func)(object_t* obj);
-typedef void (*obj_on_start_func)(object_t* obj);
-typedef void (*obj_on_stop_func)(object_t* obj);
-typedef void (*obj_on_update_func)(object_t* obj);
-typedef void (*obj_on_destroy_func)(object_t* obj);
 
 #define obj_ctor_w_id(ID, OBJ, ...)     gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), obj_ctor)(__VA_ARGS__)
 #define obj_dtor_w_id(ID)               gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), obj_dtor) 

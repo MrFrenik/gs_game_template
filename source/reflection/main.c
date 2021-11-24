@@ -775,6 +775,9 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             const char* params =  c->ctor.params;
             gs_fprintln(fp, "#define %s_ctor obj_ctor_%zu", name, id);	
 
+            // New
+            gs_fprintln(fp, "#define %s_new obj_new_%zu", name, id);	
+
             // Dtor
             gs_fprintln(fp, "#define %s_dtor obj_dtor_%zu", name, id);	
 
@@ -808,6 +811,9 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             // Ctor
             const char* params =  c->ctor.params;
             gs_fprintln(fp, "GS_API_DECL struct %s obj_ctor_%zu(%s);", name, id, params);	
+
+            // New
+            gs_fprintln(fp, "GS_API_DECL object_t* obj_new_%zu(%s);", id, params);	
 
             // Dtor
             gs_fprintln(fp, "GS_API_DECL void obj_dtor_%zu(struct object_t* obj);", id);	
@@ -939,6 +945,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
             // Standard VTable functions
             gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_%zu);", name, id);	
             gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_%zu);", name, id);	
             gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_%zu);", name, id);	
             gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_%zu);", name, id);	
@@ -1054,6 +1061,33 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 
             // Return
             gs_fprintln(fp, "\treturn _obj;");	
+
+            gs_fprintln(fp, "}");	
+        }
+
+        // New
+    
+        {
+            const char* params =  c->ctor.params;
+            const char* func = c->ctor.func;
+
+            gs_fprintln(fp, "GS_API_DECL object_t* obj_new_%zu(%s)", id, params);	
+            gs_fprintln(fp, "{"); 
+
+            gs_fprintln(fp, "\t%s* _obj = gs_malloc_init(%s);", name, name);	
+            gs_fprintln(fp, "\t%s* this = _obj;", name);	
+
+            // Set object id here
+            gs_fprintln(fp, "\tcast(this, object_t)->cls_id = obj_sid(%s);", name);	
+            
+            // Print the function box
+            if (*func)
+            {
+                gs_fprintln(fp, "\t%s", func);	
+            }
+
+            // Return
+            gs_fprintln(fp, "\treturn (object_t*)_obj;");	
 
             gs_fprintln(fp, "}");	
         }

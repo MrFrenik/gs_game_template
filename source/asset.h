@@ -89,13 +89,16 @@ typedef struct texture_t
 {
 	base(asset_t)
 
-    // Vtable
-    vtable(
-        .serialize = texture_serialize, 
-        .deserialize = texture_deserialize
-    )
+    serialize({
+        return texture_serialize(buffer, this);
+    })
+
+    deserialize({
+        return texture_deserialize(buffer, this);
+    })
 
 	// Fields
+    field()
 	gs_asset_texture_t texture;
 
 } texture_t; 
@@ -127,13 +130,41 @@ typedef struct audio_source_t
 GS_API_DECL bool audio_source_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
 
 introspect()
+typedef struct pipeline_t
+{
+    base(asset_t)
+
+    // Fields
+    gs_gfxt_pipeline_t pipeline;
+
+} pipeline_t;
+
+GS_API_DECL gs_gfxt_pipeline_t* get_pipeline_raw(GS_GFXT_HNDL hndl, void* user_data)
+{
+    pipeline_t* pip = (pipeline_t*)hndl;
+    return &pip->pipeline;
+}
+
+GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
+
+introspect()
 typedef struct material_t
 {
 	base(asset_t)
 
-    // VTable functions
-    vtable(
-    )
+    ctor({
+        params(pipeline_t* pip),
+        func({
+            gs_assert(pip);
+            this->material = gs_gfxt_material_create(&(gs_gfxt_material_desc_t){
+                .pip_func = {
+                    .func = get_pipeline_raw,
+                    .hndl = pip
+                }
+            });
+            gs_assert(this->material.desc.pip_func.hndl);
+        })
+    })
 
 	// Fields
 	gs_gfxt_material_t material;
@@ -153,17 +184,7 @@ typedef struct material_instance_t
     uint32_t parent;            // Asset handle to parent material/instance
     gs_byte_buffer_t overrides; // Override of uniform data (don't want to copy data...)
 } material_instance_t;
-*/
-
-introspect()
-typedef struct pipeline_t
-{
-	base(asset_t)
-
-	// Fields
-	gs_gfxt_pipeline_t pipeline;
-
-} pipeline_t;
+*/ 
 
 typedef struct asset_record_t
 {
@@ -177,12 +198,14 @@ typedef struct asset_record_t
 } asset_record_t;
 
 #define ASSET_IMPORTER_FILE_EXTENSIONS_MAX 10
+#define ASSETS_FILE_EXTENSION_MAX_LENGTH 32
 
 typedef struct asset_importer_desc_t
 {
 	bool (* load_resource_from_file)(const char* path, asset_t* out, void* user_data);
 	char* file_extensions[ASSET_IMPORTER_FILE_EXTENSIONS_MAX];
 	size_t file_extensions_size;
+    char file_extension[ASSETS_FILE_EXTENSION_MAX_LENGTH];
 } asset_importer_desc_t;
 
 typedef struct asset_importer_t
@@ -197,6 +220,7 @@ typedef struct asset_importer_t
 	bool (* load_resource_from_file)(const char* path, asset_t* out, void* user_data);
 	uint64_t asset_cls_id;
 	size_t cls_sz;
+    char file_extension[ASSETS_FILE_EXTENSION_MAX_LENGTH];
 } asset_importer_t;
 
 typedef struct asset_manager_t
@@ -204,7 +228,7 @@ typedef struct asset_manager_t
 	base(object_t)
 
 	// Fields
-	char root_path[ASSET_STR_MAX];	
+	char root_path[ASSET_STR_MAX];
 	gs_slot_array(asset_importer_t*) importers;	    // Slot array of asset data
 	gs_hash_table(uint64_t, uint32_t) cid2importer; // Mapping from cls id to importer data
 	gs_hash_table(uint64_t, uint32_t) fe2importer;  // Mapping from file extension to importer data
@@ -213,9 +237,9 @@ typedef struct asset_manager_t
 
 GS_API_DECL void assets_init(asset_manager_t* am, const char* root_path);
 GS_API_DECL const char* assets_get_internal_file_extension(const char* ext);
-GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data);
-GS_API_DECL gs_result assets_serialize_asset(const char* path, const asset_t* in);
-GS_API_DECL gs_result assets_deserialize_asset(const char*path, asset_t* out);
+GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data, bool serialize_to_disk);
+GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* path, const asset_t* in);
+GS_API_DECL gs_result assets_deserialize_asset(asset_manager_t* am, const char*path, asset_t* out);
 GS_API_DECL void* assets_get_data_internal(uint64_t cls_id);
 GS_API_DECL  const asset_t* _assets_get_w_name_internal(const asset_manager_t* am, uint64_t cid, const char* name);
 GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_t cid, size_t cls_sz, asset_importer_desc_t* desc);
@@ -235,15 +259,20 @@ GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_
 asset_manager_t* _g_asset_manager = NULL; 
 
 // Maps resource file extension to internal engine file extension
-GS_API_DECL const char* assets_get_internal_file_extension(const char* ext)
+GS_API_DECL const char* assets_get_internal_file_extension(asset_manager_t* am, const char* ext)
 {
-	// Textures
-	if (gs_string_compare_equal(ext, "png") || gs_string_compare_equal(ext, "jpg"))
-	{
-		return "tex";
-	}
+    // Find importer from file extension mapping
+    uint64_t hash = gs_hash_str64(ext);
+    bool exists = gs_hash_table_exists(am->fe2importer, hash);
+    if (!exists)
+    {
+        gs_println("warning::asset_manager_t::assets_get_internal_file_extension::%s not registered", ext);
+        return "ass"; 
+    } 
 
-	return "ass";
+    // Get importer
+    asset_importer_t* importer = gs_slot_array_get(am->importers, gs_hash_table_get(am->fe2importer, hash)); 
+    return importer->file_extension; 
 }
 
 GS_API_DECL const asset_t* _assets_get_w_name_internal(const asset_manager_t* am, uint64_t cid, const char* name)
@@ -286,6 +315,7 @@ GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_
 	importer->load_resource_from_file = desc->load_resource_from_file;
 	importer->asset_cls_id = cid;
 	importer->cls_sz = cls_sz;
+    memcpy(importer->file_extension, desc->file_extension ? desc->file_extension : "ass", ASSETS_FILE_EXTENSION_MAX_LENGTH);
 	uint32_t hndl = gs_slot_array_insert(am->importers, importer);
 	gs_hash_table_insert(am->cid2importer, cid, hndl);
 	uint32_t ct = desc->file_extensions_size ? desc->file_extensions_size / sizeof(char*) : 0;
@@ -295,7 +325,7 @@ GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_
 	}
 }
 
-GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data)	
+GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data, bool serialize_to_disk)	
 {
 	// Create record for asset, set path to asset using qualified name
 	asset_record_t record = {0};
@@ -332,7 +362,7 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 	FINAL_PATH[0] = '.';
 
 	// Get file extension from registered mappings
-	const char* file_ext = assets_get_internal_file_extension(FILE_EXT);
+	const char* file_ext = assets_get_internal_file_extension(am, FILE_EXT);
 	gs_snprintf(record.path, ASSET_STR_MAX, "%s.%s", FINAL_PATH, file_ext);
 
        // Generate uuid for asset
@@ -346,6 +376,8 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 	bool loaded = importer->load_resource_from_file(PATH, asset, user_data); 
 	if (loaded)
 	{
+        gs_println("asset_import::imported %s to %s", path, record.path);
+
 		// Insert into data array
 		uint32_t hndl = gs_slot_array_insert(importer->assets, asset);
 
@@ -358,47 +390,47 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
         // Assign asset handle to record
         record.hndl = hndl;
 
-		// Serialize asset to disk (if requested)
-		// serialize_asset(record.path, asset);
-
 		// Store record in storage
 		uint32_t rhndl = gs_slot_array_insert(importer->records, record);
 
 		// Set asset record hndl
-		asset->record_hndl = rhndl;
+		asset->record_hndl = rhndl; 
+
+		// Serialize asset to disk
+        if (serialize_to_disk)
+        {
+		    assets_serialize_asset(am, record.path, asset);
+        }
 	}
 }
 
-/*
-GS_API_DECL gs_result assets_serialize_asset(const char* path, const asset_t* in)
-{
-    // Get global instance of asset manager
-    asset_manager_t* am = asset_manager_instance(); 
-
+GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* path, const asset_t* in)
+{ 
     // Get class id
-    uint64_t id = in->cls_id();
+    uint64_t id = obj_id(in);
 
     // Get asset storage based on type of asset
-	uint32_t sid = am->cid2assets.get(id);
-    asset_storage_base_t* storage = am->assets.get(sid);
-    const asset_record_t* record = storage->records.getp(in->record_hndl);
+    uint32_t sid = gs_hash_table_get(am->cid2importer, id);
+    asset_importer_t* importer = gs_slot_array_get(am->importers, sid);
+    const asset_record_t* record = gs_slot_array_getp(importer->records, in->record_hndl);
 
 	gs_byte_buffer_t bb = gs_byte_buffer_new();
 
 	// === Object Header === //
-	gs_byte_buffer_write(&bb, uint64_t, id);	// Class id (not sure about this)
+	gs_byte_buffer_write(&bb, uint64_t, id);	// Class id (not sure about this) should write out class name instead?
 
 	// === Asset Header === //
 	gs_byte_buffer_write(&bb, gs_uuid_t, record->uuid);
 	gs_byte_buffer_write_str(&bb, record->name);
 
 	// Serialize asset data 
-	gs_result res = in->serialize(&bb);	
+    obj_serialize_func serialize = obj_func_w_id(id, obj_serialize);
+    gs_result res = (*serialize)(&bb, in);
 		
 	// Default serialization if no serializer provider
 	if (res == GS_RESULT_INCOMPLETE)
 	{
-		object_t::serialize_default(&bb, in);
+        res = object_serialize_default(&bb, in);
 	}
 
 	// Write to file
@@ -409,7 +441,6 @@ GS_API_DECL gs_result assets_serialize_asset(const char* path, const asset_t* in
 
 	return GS_RESULT_SUCCESS;
 }
-*/
 
 /*
 gs_result asset_manager_t::deserialize_asset(const char* path, asset_t* out)
@@ -508,15 +539,25 @@ GS_API_DECL void assets_init(asset_manager_t* am, const char* path)
 	assets_register_importer(am, texture_t, (&(asset_importer_desc_t){
 		.load_resource_from_file = texture_t_load_resource_from_file,
 		.file_extensions = {"png", "jpg"},
-		.file_extensions_size = 2 * sizeof(char*)
+		.file_extensions_size = 2 * sizeof(char*),
+        .file_extension = "tex"
 	}));
 
     // Register audio importer
     assets_register_importer(am, audio_source_t, (&(asset_importer_desc_t){
         .load_resource_from_file = audio_source_t_load_resource_from_file,
         .file_extensions = {"ogg", "wav", "mp3"}, 
-        .file_extensions_size = 3 * sizeof(char*)
-    }));
+        .file_extensions_size = 3 * sizeof(char*),
+        .file_extension = "aud"
+    })); 
+
+    // Register pipeline importer
+    assets_register_importer(am, pipeline_t, (&(asset_importer_desc_t){
+        .load_resource_from_file = pipeline_t_load_resource_from_file,
+        .file_extensions = {"sf"}, 
+        .file_extensions_size = 1 * sizeof(char*),
+        .file_extension = "pip"
+    })); 
 
 	// Open directory
 	DIR* dir = opendir(path);
@@ -697,10 +738,6 @@ GS_API_DECL gs_result texture_deserialize(gs_byte_buffer_t* buffer, object_t* ou
 	return GS_RESULT_SUCCESS;
 }
 
-//=======[ Material ]=================================================================
-
-//=======[ Pipeline ]=================================================================
-
 //=======[ Audio ]====================================================================
 
 GS_API_DECL bool audio_source_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
@@ -726,6 +763,512 @@ GS_API_DECL bool mesh_t_load_resource_from_file(const char* path, asset_t* out, 
 	mesh_t* mesh = (mesh_t*)out;
 	mesh->mesh = gs_gfxt_mesh_load_from_file(path, user_data);
 	return true;
+} 
+
+//=======[ Pipeline ]================================================================= 
+
+typedef struct tmp_buffer_t
+{
+    char txt[1024]; 
+} tmp_buffer_t; 
+
+typedef struct shader_out_data_t
+{
+    char type[64];
+    char name[64];
+} shader_out_data_t;
+
+typedef struct pipeline_parse_data_t 
+{ 
+    gs_dyn_array(shader_out_data_t) out_list[2];
+    char* code[2];
+} ppd_t; 
+
+const char* get_vertex_attribute_string(gs_graphics_vertex_attribute_type type)
+{ 
+    switch (type)
+    {
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT:   return "float"; break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT2:  return "vec2";  break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT3:  return "vec3";  break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT4:  return "vec4";  break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT:    return "int";   break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT2:   return "vec2";  break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT3:   return "vec3";  break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT4:   return "vec4";  break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE:    return "float"; break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE2:   return "vec2"; break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE3:   return "vec3"; break;
+        case GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE4:   return "vec4"; break;
+        default: return "UNKNOWN"; break;
+    }
+}
+
+gs_graphics_vertex_attribute_type get_vertex_attribute_from_token(const gs_token_t* t)
+{ 
+    if (gs_token_compare_text(t, "float"))       return GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT;
+    else if (gs_token_compare_text(t, "float2")) return GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT2;
+    else if (gs_token_compare_text(t, "float3")) return GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT3;
+    else if (gs_token_compare_text(t, "float4")) return GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT4;
+    else if (gs_token_compare_text(t, "uint4"))  return GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT4;
+    else if (gs_token_compare_text(t, "uint3"))  return GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT3;
+    else if (gs_token_compare_text(t, "uint2"))  return GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT2;
+    else if (gs_token_compare_text(t, "uint"))   return GS_GRAPHICS_VERTEX_ATTRIBUTE_UINT;
+    else if (gs_token_compare_text(t, "byte4"))  return GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE4;
+    else if (gs_token_compare_text(t, "byte3"))  return GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE3;
+    else if (gs_token_compare_text(t, "byte2"))  return GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE2;
+    else if (gs_token_compare_text(t, "byte"))   return GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE;
+    return 0x00;
+}
+
+gs_graphics_uniform_type uniform_type_from_token(const gs_token_t* t)
+{
+    if (gs_token_compare_text(t, "float"))      return GS_GRAPHICS_UNIFORM_FLOAT; 
+    else if (gs_token_compare_text(t, "int"))   return GS_GRAPHICS_UNIFORM_INT;
+    else if (gs_token_compare_text(t, "vec2"))  return GS_GRAPHICS_UNIFORM_VEC2;
+    else if (gs_token_compare_text(t, "vec3"))  return GS_GRAPHICS_UNIFORM_VEC3; 
+    else if (gs_token_compare_text(t, "vec4"))  return GS_GRAPHICS_UNIFORM_VEC4; 
+    else if (gs_token_compare_text(t, "mat4"))  return GS_GRAPHICS_UNIFORM_MAT4; 
+    else if (gs_token_compare_text(t, "sampler2D"))  return GS_GRAPHICS_UNIFORM_SAMPLER2D; 
+    return 0x00;
+}
+
+const char* uniform_string_from_type(gs_graphics_uniform_type type)
+{
+    switch (type)
+    {
+        case GS_GRAPHICS_UNIFORM_FLOAT:     return "float"; break; 
+        case GS_GRAPHICS_UNIFORM_INT:       return "int"; break;
+        case GS_GRAPHICS_UNIFORM_VEC2:      return "vec2"; break;
+        case GS_GRAPHICS_UNIFORM_VEC3:      return "vec3"; break; 
+        case GS_GRAPHICS_UNIFORM_VEC4:      return "vec4"; break; 
+        case GS_GRAPHICS_UNIFORM_MAT4:      return  "mat4"; break;
+        case GS_GRAPHICS_UNIFORM_SAMPLER2D: return "sampler2D"; break; 
+        default: return "UNKNOWN"; break;
+    }
+    return 0x00;
+}
+
+void parse_uniforms(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd, gs_graphics_shader_stage_type stage)
+{
+	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
+    { 
+        gs_assert(false);
+    } 
+
+    uint32_t bc = 1; 
+    while (bc)
+    {
+        gs_token_t token = lex->next_token(lex);
+        switch (token.type)
+        { 
+            case GS_TOKEN_LBRACE: {bc++;} break; 
+            case GS_TOKEN_RBRACE: {bc--;} break;
+            
+            case GS_TOKEN_IDENTIFIER: 
+            {
+                gs_gfxt_uniform_desc_t uniform = {0};
+                uniform.type = uniform_type_from_token(&token); 
+                uniform.stage = stage;
+
+                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) 
+                { 
+                    gs_assert(false);
+                } 
+                token = lex->current_token;
+
+                memcpy(uniform.name, token.text, token.len);
+
+                // Add uniform to ublock descriptor
+                gs_dyn_array_push(desc->ublock_desc.layout, uniform); 
+                
+            } break;
+        } 
+    } 
+}
+
+void parse_out(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd, gs_graphics_shader_stage_type type)
+{
+	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
+    { 
+        gs_assert(false);
+    } 
+
+    uint32_t bc = 1; 
+    while (bc)
+    {
+        gs_token_t token = lex->next_token(lex);
+        switch (token.type)
+        { 
+            case GS_TOKEN_LBRACE: {bc++;} break; 
+            case GS_TOKEN_RBRACE: {bc--;} break;
+            
+            case GS_TOKEN_IDENTIFIER: 
+            {
+                shader_out_data_t out = {0};
+                memcpy(out.type, token.text, token.len);
+
+                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) 
+                { 
+                    gs_assert(false);
+                } 
+
+                token = lex->current_token;
+                memcpy(out.name, token.text, token.len);
+
+                switch (type)
+                {
+                    case GS_GRAPHICS_SHADER_STAGE_VERTEX:
+                    {
+                        gs_dyn_array_push(ppd->out_list[0], out);
+                    } break;
+
+                    case GS_GRAPHICS_SHADER_STAGE_FRAGMENT:
+                    {
+                        gs_dyn_array_push(ppd->out_list[1], out);
+                    } break;
+                }
+            } break;
+        }
+    }
+}
+
+void parse_code(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd, gs_graphics_shader_stage_type stage)
+{
+	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
+    { 
+        gs_assert(false);
+    } 
+
+    uint32_t bc = 1; 
+    gs_token_t cur = lex->next_token(lex);
+    gs_token_t token = lex->current_token;
+    while (bc)
+    {
+        switch (token.type)
+        { 
+            case GS_TOKEN_LBRACE: {bc++;} break; 
+            case GS_TOKEN_RBRACE: {bc--;} break; 
+        }
+        token = lex->next_token(lex);
+    }
+
+    const size_t sz = (size_t)(token.text - cur.text - 1);
+    char* code = gs_malloc(sz + 1);
+    memset(code, 0, sz);
+    memcpy(code, cur.text, sz - 1);
+
+    switch (stage)
+    {
+        case GS_GRAPHICS_SHADER_STAGE_VERTEX: ppd->code[0]   = code; break; 
+        case GS_GRAPHICS_SHADER_STAGE_FRAGMENT: ppd->code[1] = code; break;
+    }
+}
+
+void parse_vertex_attributes(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
+{
+	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
+    { 
+        gs_assert(false);
+    } 
+
+    uint32_t bc = 1; 
+    while (bc)
+    {
+        gs_token_t token = lex->next_token(lex);
+        switch (token.type)
+        { 
+            case GS_TOKEN_LBRACE: {bc++;} break; 
+            case GS_TOKEN_RBRACE: {bc--;} break;
+            
+            case GS_TOKEN_IDENTIFIER: {
+
+                gs_graphics_vertex_attribute_desc_t attr = {0}; 
+                attr.format = get_vertex_attribute_from_token(&token); 
+
+                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+                {
+                    gs_assert(false);
+                } 
+
+                token = lex->current_token;
+                memcpy(attr.name, token.text, token.len);
+
+                // Push back into layout
+                gs_dyn_array_push(desc->pip_desc.layout.attrs, attr);
+
+            } break;
+        }
+    }
+}
+
+void parse_shader_stage(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd, gs_graphics_shader_stage_type stage)
+{
+	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
+    { 
+        gs_println("error::pipeline_t_load_resource_from_file::error parsing shader from .sf resource");
+        gs_assert(false);
+    } 
+
+    uint32_t bc = 1; 
+    while (bc)
+    {
+        gs_token_t token = lex->next_token(lex);
+        switch (token.type)
+        { 
+            case GS_TOKEN_LBRACE: {bc++;} break; 
+            case GS_TOKEN_RBRACE: {bc--;} break;
+
+            case GS_TOKEN_IDENTIFIER:
+            {
+                if (stage == GS_GRAPHICS_SHADER_STAGE_VERTEX && 
+                     gs_token_compare_text(&token, "attributes"))
+                {
+                    gs_println("parsing attributes...");
+                    parse_vertex_attributes(lex, desc, ppd);
+                }
+
+                else if (gs_token_compare_text(&token, "uniforms"))
+                {
+                    parse_uniforms(lex, desc, ppd, stage);
+                }
+
+                else if (gs_token_compare_text(&token, "out"))
+                {
+                    parse_out(lex, desc, ppd, stage);
+                }
+
+                else if (gs_token_compare_text(&token, "code"))
+                {
+                    parse_code(lex, desc, ppd, stage);
+                }
+
+            } break;
+        }
+    }
+
+}
+
+void parse_shader(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
+{ 
+	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
+    { 
+        gs_println("error::pipeline_t_load_resource_from_file::error parsing shader from .sf resource");
+        gs_assert(false);
+    } 
+
+    // Braces
+    uint32_t bc = 1; 
+    while (bc)
+    {
+        gs_token_t token = lex->next_token(lex);
+        switch (token.type)
+        {
+            case GS_TOKEN_LBRACE: {bc++;} break; 
+            case GS_TOKEN_RBRACE: {bc--;} break;
+
+            case GS_TOKEN_IDENTIFIER:
+            {
+                // Vertex shader
+                if (gs_token_compare_text(&token, "vertex"))
+                {
+                    gs_println("parsing vertex shader");
+                    parse_shader_stage(lex, desc, ppd, GS_GRAPHICS_SHADER_STAGE_VERTEX);
+                }
+
+                // Fragment shader
+                else if (gs_token_compare_text(&token, "fragment"))
+                {
+                    gs_println("parsing fragment shader");
+                    parse_shader_stage(lex, desc, ppd, GS_GRAPHICS_SHADER_STAGE_FRAGMENT);
+                } 
+
+            } break;
+        }
+    }
+}
+
+void parse_pipeline(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
+{ 
+    // Get next identifier
+    while (lex->can_lex(lex))
+    {
+        gs_token_t token = lex->next_token(lex);
+        switch (token.type)
+        {
+            case GS_TOKEN_IDENTIFIER:
+            {
+                if (gs_token_compare_text(&token, "shader"))
+                {
+                    gs_println("parsing shader");
+                    parse_shader(lex, desc, ppd);
+                }
+            } break;
+        }
+    }
+}
+
+char* pipeline_generate_shader_code(gs_gfxt_pipeline_desc_t* pdesc, ppd_t* ppd, gs_graphics_shader_stage_type stage)
+{
+    // Shaders
+    #ifdef GS_PLATFORM_WEB
+        #define _GS_VERSION_STR "#version 300 es\n"
+    #else
+        #define _GS_VERSION_STR "#version 330 core\n"
+    #endif
+
+    // Source code 
+    char* src = NULL; 
+    uint32_t sidx = 0;
+
+    // Set sidx
+    switch (stage)
+    {
+        case GS_GRAPHICS_SHADER_STAGE_VERTEX:   sidx = 0; break;
+        case GS_GRAPHICS_SHADER_STAGE_FRAGMENT: sidx = 1; break;
+    }
+
+    const char* shader_header = 
+    _GS_VERSION_STR
+    "precision mediump float;\n";
+
+    // Generate shader code
+    if (ppd->code[sidx])
+    {
+        const size_t header_sz = (size_t)gs_string_length(shader_header);
+        size_t total_sz = gs_string_length(ppd->code[sidx]) + header_sz + 2048;
+        src = gs_malloc(total_sz); 
+        memset(src, 0, total_sz);
+        strncat(src, shader_header, header_sz);
+        
+        // Attributes
+        if (stage == GS_GRAPHICS_SHADER_STAGE_VERTEX)
+        {
+            for (uint32_t i = 0; i < gs_dyn_array_size(pdesc->pip_desc.layout.attrs); ++i)
+            { 
+                const char* aname = pdesc->pip_desc.layout.attrs[i].name;
+                const char* atype = get_vertex_attribute_string(pdesc->pip_desc.layout.attrs[i].format); 
+
+                gs_snprintfc(ATTR, 64, "layout(location = %zu) in %s %s;\n", i, atype, aname);
+                const size_t sz = gs_string_length(ATTR);
+                strncat(src, ATTR, sz);
+            } 
+        }
+
+        // Uniforms
+        for (uint32_t i = 0; i < gs_dyn_array_size(pdesc->ublock_desc.layout); ++i)
+        { 
+            gs_gfxt_uniform_desc_t* udesc = &pdesc->ublock_desc.layout[i]; 
+
+            if (udesc->stage != stage) continue;
+
+            // Need to go from uniform type to string
+            const char* utype = uniform_string_from_type(udesc->type);
+            const char* uname = udesc->name;
+            gs_snprintfc(TMP, 64, "uniform %s %s;\n", utype, uname);
+            const size_t sz = gs_string_length(TMP);
+            strncat(src, TMP, sz);
+        }
+
+        // Out
+        for (uint32_t i = 0; i < gs_dyn_array_size(ppd->out_list[sidx]); ++i)
+        {
+            shader_out_data_t* out = &ppd->out_list[sidx][i];
+            const char* otype = out->type;
+            const char* oname = out->name;
+            gs_snprintfc(TMP, 64, "out %s %s;\n", otype, oname);
+            const size_t sz = gs_string_length(TMP);
+            strncat(src, TMP, sz); 
+        }
+
+        // In
+        if (stage == GS_GRAPHICS_SHADER_STAGE_FRAGMENT)
+        {
+            for (uint32_t i = 0; i < gs_dyn_array_size(ppd->out_list[0]); ++i)
+            {
+                shader_out_data_t* out = &ppd->out_list[0][i];
+                const char* otype = out->type;
+                const char* oname = out->name;
+                gs_snprintfc(TMP, 64, "in %s %s;\n", otype, oname);
+                const size_t sz = gs_string_length(TMP);
+                strncat(src, TMP, sz); 
+            }
+        }
+
+        // Code
+        { 
+            strncat(src, "void main() {\n", 15); 
+            const size_t sz = gs_string_length(ppd->code[sidx]);
+            strncat(src, ppd->code[sidx], sz); 
+            strncat(src, "}", 1); 
+        } 
+    } 
+
+    return src;
+}
+
+GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
+{
+    // Cast to pip
+    pipeline_t* pip = (pipeline_t*)out;
+
+    // Load file, generate lexer off of file data, parse contents for pipeline information 
+    size_t len = 0;
+    char* file_data = gs_platform_read_file_contents(path, "r", &len);
+    gs_assert(file_data); 
+
+    ppd_t ppd = {0};
+    gs_gfxt_pipeline_desc_t pdesc = {0};
+
+	gs_lexer_t lex = gs_lexer_c_ctor(file_data);
+    while (lex.can_lex(&lex))
+    {
+        gs_token_t token = lex.next_token(&lex);
+        switch (token.type)
+        {
+            case GS_TOKEN_IDENTIFIER:
+            {
+                if (gs_token_compare_text(&token, "pipeline"))
+                {
+                    parse_pipeline(&lex, &pdesc, &ppd); 
+                }
+            } break;
+        }
+    }
+
+    // Generate vertex shader code
+    char* v_src = pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_VERTEX);
+
+    // Generate fragment shader code
+    char* f_src = pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_FRAGMENT);
+
+    // Construct shader for pdesc 
+    pdesc.pip_desc.raster.shader = gs_graphics_shader_create(&(gs_graphics_shader_desc_t){
+        .sources = (gs_graphics_shader_source_desc_t[]){ 
+            {.type = GS_GRAPHICS_SHADER_STAGE_VERTEX, .source = v_src},
+            {.type = GS_GRAPHICS_SHADER_STAGE_FRAGMENT, .source = f_src}
+        },
+        .size = 2 * sizeof(gs_graphics_shader_source_desc_t),
+        .name = path
+    });
+
+    // Set up raster
+    pdesc.pip_desc.raster.index_buffer_element_size = sizeof(uint32_t); 
+
+    // Set up layout
+    pdesc.pip_desc.layout.size = gs_dyn_array_size(pdesc.pip_desc.layout.attrs) * sizeof(gs_graphics_vertex_attribute_desc_t);
+
+    // Set up ublock
+    pdesc.ublock_desc.size = gs_dyn_array_size(pdesc.ublock_desc.layout) * sizeof(gs_gfxt_uniform_desc_t); 
+
+    // Free all malloc'd data 
+    pip->pipeline = gs_gfxt_pipeline_create(&pdesc);
+
+    gs_free(v_src);
+    gs_free(f_src); 
+    gs_free(file_data); 
+
+    return true;
 }
 
 #endif // ASSET_IMPL

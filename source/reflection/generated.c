@@ -49,6 +49,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t component_rotation_t_vt = gs_default_val();
 	gs_hash_table_insert(component_rotation_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_3141622024);
+	gs_hash_table_insert(component_rotation_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_3141622024);
 	gs_hash_table_insert(component_rotation_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_3141622024);
 	gs_hash_table_insert(component_rotation_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_3141622024);
 	gs_hash_table_insert(component_rotation_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_3141622024);
@@ -73,9 +74,8 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 
 	// vtable
 	gs_meta_vtable_t texture_t_vt = gs_default_val();
-	gs_hash_table_insert(texture_t_vt.funcs, gs_hash_str64(gs_to_str(serialize)), (void*)texture_serialize);
-	gs_hash_table_insert(texture_t_vt.funcs, gs_hash_str64(gs_to_str(deserialize)), (void*)texture_deserialize);
 	gs_hash_table_insert(texture_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_1462486611);
+	gs_hash_table_insert(texture_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_1462486611);
 	gs_hash_table_insert(texture_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_1462486611);
 	gs_hash_table_insert(texture_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_1462486611);
 	gs_hash_table_insert(texture_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_1462486611);
@@ -87,6 +87,10 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 
 	// texture_t
 	gs_meta_class_register(meta, (&(gs_meta_class_decl_t) {
+		.properties = (gs_meta_property_t[]) {
+			gs_meta_property(texture_t, gs_asset_texture_t, texture, GS_META_PROPERTY_TYPE_INFO_OBJ)
+		},
+		.size = 1 * sizeof(gs_meta_property_t),
 		.vtable = &texture_t_vt,
 		.name = gs_to_str(texture_t),
 		.base = gs_to_str(asset_t),
@@ -96,6 +100,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t asset_t_vt = gs_default_val();
 	gs_hash_table_insert(asset_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_335738428);
+	gs_hash_table_insert(asset_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_335738428);
 	gs_hash_table_insert(asset_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_335738428);
 	gs_hash_table_insert(asset_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_335738428);
 	gs_hash_table_insert(asset_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_335738428);
@@ -116,6 +121,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t pipeline_t_vt = gs_default_val();
 	gs_hash_table_insert(pipeline_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_3640749902);
+	gs_hash_table_insert(pipeline_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_3640749902);
 	gs_hash_table_insert(pipeline_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_3640749902);
 	gs_hash_table_insert(pipeline_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_3640749902);
 	gs_hash_table_insert(pipeline_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_3640749902);
@@ -136,6 +142,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t mesh_t_vt = gs_default_val();
 	gs_hash_table_insert(mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_1910793471);
+	gs_hash_table_insert(mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_1910793471);
 	gs_hash_table_insert(mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_1910793471);
 	gs_hash_table_insert(mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_1910793471);
 	gs_hash_table_insert(mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_1910793471);
@@ -156,6 +163,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t material_t_vt = gs_default_val();
 	gs_hash_table_insert(material_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_2657371751);
+	gs_hash_table_insert(material_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_2657371751);
 	gs_hash_table_insert(material_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_2657371751);
 	gs_hash_table_insert(material_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_2657371751);
 	gs_hash_table_insert(material_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_2657371751);
@@ -176,6 +184,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t component_transform_t_vt = gs_default_val();
 	gs_hash_table_insert(component_transform_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_3446999376);
+	gs_hash_table_insert(component_transform_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_3446999376);
 	gs_hash_table_insert(component_transform_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_3446999376);
 	gs_hash_table_insert(component_transform_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_3446999376);
 	gs_hash_table_insert(component_transform_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_3446999376);
@@ -200,6 +209,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t font_t_vt = gs_default_val();
 	gs_hash_table_insert(font_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_477039743);
+	gs_hash_table_insert(font_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_477039743);
 	gs_hash_table_insert(font_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_477039743);
 	gs_hash_table_insert(font_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_477039743);
 	gs_hash_table_insert(font_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_477039743);
@@ -220,6 +230,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t component_base_t_vt = gs_default_val();
 	gs_hash_table_insert(component_base_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_3118336809);
+	gs_hash_table_insert(component_base_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_3118336809);
 	gs_hash_table_insert(component_base_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_3118336809);
 	gs_hash_table_insert(component_base_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_3118336809);
 	gs_hash_table_insert(component_base_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_3118336809);
@@ -244,6 +255,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t audio_source_t_vt = gs_default_val();
 	gs_hash_table_insert(audio_source_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_1947392792);
+	gs_hash_table_insert(audio_source_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_1947392792);
 	gs_hash_table_insert(audio_source_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_1947392792);
 	gs_hash_table_insert(audio_source_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_1947392792);
 	gs_hash_table_insert(audio_source_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_1947392792);
@@ -264,6 +276,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t component_physics_t_vt = gs_default_val();
 	gs_hash_table_insert(component_physics_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_3852747479);
+	gs_hash_table_insert(component_physics_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_3852747479);
 	gs_hash_table_insert(component_physics_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_3852747479);
 	gs_hash_table_insert(component_physics_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_3852747479);
 	gs_hash_table_insert(component_physics_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_3852747479);
@@ -289,6 +302,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t entity_t_vt = gs_default_val();
 	gs_hash_table_insert(entity_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_1210153879);
+	gs_hash_table_insert(entity_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_1210153879);
 	gs_hash_table_insert(entity_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_1210153879);
 	gs_hash_table_insert(entity_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_1210153879);
 	gs_hash_table_insert(entity_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_1210153879);
@@ -309,6 +323,7 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	// vtable
 	gs_meta_vtable_t component_renderable_t_vt = gs_default_val();
 	gs_hash_table_insert(component_renderable_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_218119740);
+	gs_hash_table_insert(component_renderable_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_218119740);
 	gs_hash_table_insert(component_renderable_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_218119740);
 	gs_hash_table_insert(component_renderable_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_218119740);
 	gs_hash_table_insert(component_renderable_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_218119740);
@@ -348,6 +363,18 @@ GS_API_DECL component_rotation_t obj_ctor_3141622024(float rotation_speed, gs_ve
             this->rotation_axis = rotation_axis;
         }
 	return _obj;
+}
+GS_API_DECL object_t* obj_new_3141622024(float rotation_speed, gs_vec3 rotation_axis)
+{
+	component_rotation_t* _obj = gs_malloc_init(component_rotation_t);
+	component_rotation_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(component_rotation_t);
+	{
+            gs_println("CTOR");
+            this->rotation_speed = rotation_speed;
+            this->rotation_axis = rotation_axis;
+        }
+	return (object_t*)_obj;
 }
 
 GS_API_DECL void obj_dtor_3141622024(object_t* obj)
@@ -434,6 +461,13 @@ GS_API_DECL texture_t obj_ctor_1462486611()
 	cast(this, object_t)->cls_id = obj_sid(texture_t);
 	return _obj;
 }
+GS_API_DECL object_t* obj_new_1462486611()
+{
+	texture_t* _obj = gs_malloc_init(texture_t);
+	texture_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(texture_t);
+	return (object_t*)_obj;
+}
 
 GS_API_DECL void obj_dtor_1462486611(object_t* obj)
 {
@@ -441,12 +475,20 @@ GS_API_DECL void obj_dtor_1462486611(object_t* obj)
 
 GS_API_DECL gs_result obj_serialize_1462486611(gs_byte_buffer_t* buffer, const object_t* in)
 {
-	return GS_RESULT_INCOMPLETE;
+	const texture_t* this = (const texture_t*)in;
+	{
+        return texture_serialize(buffer, this);
+    }
+	return GS_RESULT_SUCCESS;
 }
 
 GS_API_DECL gs_result obj_deserialize_1462486611(gs_byte_buffer_t* buffer, object_t* out)
 {
-	return GS_RESULT_INCOMPLETE;
+	texture_t* this = (texture_t*)out;
+	{
+        return texture_deserialize(buffer, this);
+    }
+	return GS_RESULT_SUCCESS;
 }
 
 GS_API_DECL void obj_on_create_1462486611(object_t* obj)
@@ -477,6 +519,13 @@ GS_API_DECL asset_t obj_ctor_335738428()
 	asset_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(asset_t);
 	return _obj;
+}
+GS_API_DECL object_t* obj_new_335738428()
+{
+	asset_t* _obj = gs_malloc_init(asset_t);
+	asset_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(asset_t);
+	return (object_t*)_obj;
 }
 
 GS_API_DECL void obj_dtor_335738428(object_t* obj)
@@ -522,6 +571,13 @@ GS_API_DECL pipeline_t obj_ctor_3640749902()
 	cast(this, object_t)->cls_id = obj_sid(pipeline_t);
 	return _obj;
 }
+GS_API_DECL object_t* obj_new_3640749902()
+{
+	pipeline_t* _obj = gs_malloc_init(pipeline_t);
+	pipeline_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(pipeline_t);
+	return (object_t*)_obj;
+}
 
 GS_API_DECL void obj_dtor_3640749902(object_t* obj)
 {
@@ -566,6 +622,13 @@ GS_API_DECL mesh_t obj_ctor_1910793471()
 	cast(this, object_t)->cls_id = obj_sid(mesh_t);
 	return _obj;
 }
+GS_API_DECL object_t* obj_new_1910793471()
+{
+	mesh_t* _obj = gs_malloc_init(mesh_t);
+	mesh_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(mesh_t);
+	return (object_t*)_obj;
+}
 
 GS_API_DECL void obj_dtor_1910793471(object_t* obj)
 {
@@ -603,12 +666,39 @@ GS_API_DECL void obj_on_destroy_1910793471(object_t* obj)
 
 // == material_t API == //
 
-GS_API_DECL material_t obj_ctor_2657371751()
+GS_API_DECL material_t obj_ctor_2657371751(pipeline_t* pip)
 {
 	material_t _obj = gs_default_val();
 	material_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(material_t);
+	{
+            gs_assert(pip);
+            this->material = gs_gfxt_material_create(&(gs_gfxt_material_desc_t){
+                .pip_func = {
+                    .func = get_pipeline_raw,
+                    .hndl = pip
+                }
+            });
+            gs_assert(this->material.desc.pip_func.hndl);
+        }
 	return _obj;
+}
+GS_API_DECL object_t* obj_new_2657371751(pipeline_t* pip)
+{
+	material_t* _obj = gs_malloc_init(material_t);
+	material_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(material_t);
+	{
+            gs_assert(pip);
+            this->material = gs_gfxt_material_create(&(gs_gfxt_material_desc_t){
+                .pip_func = {
+                    .func = get_pipeline_raw,
+                    .hndl = pip
+                }
+            });
+            gs_assert(this->material.desc.pip_func.hndl);
+        }
+	return (object_t*)_obj;
 }
 
 GS_API_DECL void obj_dtor_2657371751(object_t* obj)
@@ -657,6 +747,16 @@ GS_API_DECL component_transform_t obj_ctor_3446999376(gs_vqs xform)
         }
 	return _obj;
 }
+GS_API_DECL object_t* obj_new_3446999376(gs_vqs xform)
+{
+	component_transform_t* _obj = gs_malloc_init(component_transform_t);
+	component_transform_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(component_transform_t);
+	{
+            this->transform = xform;
+        }
+	return (object_t*)_obj;
+}
 
 GS_API_DECL void obj_dtor_3446999376(object_t* obj)
 {
@@ -700,6 +800,13 @@ GS_API_DECL font_t obj_ctor_477039743()
 	font_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(font_t);
 	return _obj;
+}
+GS_API_DECL object_t* obj_new_477039743()
+{
+	font_t* _obj = gs_malloc_init(font_t);
+	font_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(font_t);
+	return (object_t*)_obj;
 }
 
 GS_API_DECL void obj_dtor_477039743(object_t* obj)
@@ -745,6 +852,13 @@ GS_API_DECL component_base_t obj_ctor_3118336809()
 	cast(this, object_t)->cls_id = obj_sid(component_base_t);
 	return _obj;
 }
+GS_API_DECL object_t* obj_new_3118336809()
+{
+	component_base_t* _obj = gs_malloc_init(component_base_t);
+	component_base_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(component_base_t);
+	return (object_t*)_obj;
+}
 
 GS_API_DECL void obj_dtor_3118336809(object_t* obj)
 {
@@ -788,6 +902,13 @@ GS_API_DECL audio_source_t obj_ctor_1947392792()
 	audio_source_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(audio_source_t);
 	return _obj;
+}
+GS_API_DECL object_t* obj_new_1947392792()
+{
+	audio_source_t* _obj = gs_malloc_init(audio_source_t);
+	audio_source_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(audio_source_t);
+	return (object_t*)_obj;
 }
 
 GS_API_DECL void obj_dtor_1947392792(object_t* obj)
@@ -833,6 +954,13 @@ GS_API_DECL component_physics_t obj_ctor_3852747479()
 	cast(this, object_t)->cls_id = obj_sid(component_physics_t);
 	return _obj;
 }
+GS_API_DECL object_t* obj_new_3852747479()
+{
+	component_physics_t* _obj = gs_malloc_init(component_physics_t);
+	component_physics_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(component_physics_t);
+	return (object_t*)_obj;
+}
 
 GS_API_DECL void obj_dtor_3852747479(object_t* obj)
 {
@@ -877,6 +1005,13 @@ GS_API_DECL entity_t obj_ctor_1210153879()
 	cast(this, object_t)->cls_id = obj_sid(entity_t);
 	return _obj;
 }
+GS_API_DECL object_t* obj_new_1210153879()
+{
+	entity_t* _obj = gs_malloc_init(entity_t);
+	entity_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(entity_t);
+	return (object_t*)_obj;
+}
 
 GS_API_DECL void obj_dtor_1210153879(object_t* obj)
 {
@@ -920,6 +1055,13 @@ GS_API_DECL component_renderable_t obj_ctor_218119740()
 	component_renderable_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(component_renderable_t);
 	return _obj;
+}
+GS_API_DECL object_t* obj_new_218119740()
+{
+	component_renderable_t* _obj = gs_malloc_init(component_renderable_t);
+	component_renderable_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(component_renderable_t);
+	return (object_t*)_obj;
 }
 
 GS_API_DECL void obj_dtor_218119740(object_t* obj)

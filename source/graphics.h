@@ -129,10 +129,7 @@ GS_API_DECL void quad_batch_begin(quad_batch_t* qb)
 }
 
 GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb)
-{
-    // NOTE(john): This is ~5ms (and isn't necessary with a voxel structure)
-    // quad_batch_sort(qb);
-
+{ 
     gs_dyn_array(quad_vert_t) verts = {0};
     gs_dyn_array(uint32_t) indices = {0};
 
