@@ -435,8 +435,6 @@ GS_API_DECL void app_shutdown();
 #ifdef APP_IMPL 
 
 material_t* mat = {0};
-gs_vbo vbo = {0}; 
-gs_ibo ibo = {0}; 
 
 GS_API_DECL void app_init()
 {
@@ -444,9 +442,23 @@ GS_API_DECL void app_init()
     app_t* app = gs_engine_user_data(app_t); 
     app->core = core_new(); 
 
-    // Load asset into memory
-    assets_import(&app->core->assets, "textures/logo.png", NULL, true);
-    assets_import(&app->core->assets, "pipelines/simple.sf", NULL, true);
+    // Load asset texture
+    asset_handle_t tex = assets_import(&app->core->assets, "textures/slave_albedo.png", NULL, true);
+
+    // Load asset pipeline
+    asset_handle_t pip = assets_import(&app->core->assets, "pipelines/simple.sf", NULL, true); 
+
+    // Load asset mesh
+    gs_gfxt_mesh_import_options_t mo = pipeline_get_mesh_import_options(asset_handle_get(&pip));
+    asset_handle_t msh = assets_import(&app->core->assets, "meshes/slave.gltf", &mo, true);
+    gs_gfxt_mesh_import_options_free(&mo); 
+
+    // Construct new material
+    mat = obj_newc(material_t, pip);
+    gs_assert(mat); 
+
+    // Add material to asset database
+    // assets_add_to_database(&app->core->assets, mat, "/materials", "simple_mat"); 
 
     // Register new component with entity manager
     entities_register_component(&app->core->entities, component_rotation_t);
@@ -455,37 +467,6 @@ GS_API_DECL void app_init()
     app->ent = entities_allocate(&app->core->entities);
     entities_add_component(&app->core->entities, app->ent, component_rotation_t, obj_ctor(component_rotation_t, 3.145f, gs_v3(0.f, 1.f, 0.f))); 
     entities_add_component(&app->core->entities, app->ent, component_transform_t, obj_ctor(component_transform_t, gs_vqs_default())); 
-
-    pipeline_t* pipl = assets_getp(&app->core->assets, pipeline_t, "pipelines.simple");
-    material_t* mat = obj_newc(material_t, pipl);
-    gs_assert(mat); 
-    
-    // Vertex data for quad
-     float v_data[] = {
-        // Positions  UVs
-         -0.5f, -0.5f,  0.0f, 0.0f,  // Top Left
-         0.5f, -0.5f,  1.0f, 0.0f,  // Top Right 
-        -0.5f,  0.5f,  0.0f, 1.0f,  // Bottom Left
-         0.5f,  0.5f,  1.0f, 1.0f   // Bottom Right
-    };
-
-    // Index data for quad
-    uint32_t i_data[] = {
-        0, 3, 2,    // First Triangle
-        0, 1, 3     // Second Triangle
-    }; 
-
-     // Construct vertex buffer
-    vbo = gs_graphics_vertex_buffer_create(&(gs_graphics_vertex_buffer_desc_t){
-         .data = v_data,
-         .size = sizeof(v_data) 
-     }); 
-
-     // Construct vertex buffer
-    ibo = gs_graphics_index_buffer_create(&(gs_graphics_index_buffer_desc_t){
-         .data = i_data,
-         .size = sizeof(i_data) 
-     }); 
 } 
 
 GS_API_DECL void app_update()
@@ -512,28 +493,32 @@ GS_API_DECL void app_update()
     component_transform_t* tc = entities_get_component(em, app->ent, component_transform_t);
 
     // Get texture from assets
-    texture_t* tex = assets_getp(&app->core->assets, texture_t, "textures.logo", true); 
+    texture_t* tex = assets_getp(&app->core->assets, texture_t, "textures.slave_albedo"); 
+    mesh_t* mesh = assets_getp(&app->core->assets, mesh_t, "meshes.slave");
 
-    gs_gfxt_material_set_uniform(&mat->material, "u_color",  &(gs_vec3){sin(gs_platform_elapsed_time() * 0.001f) * 0.5f + 0.5f, 0.f, 0.f});
-    gs_gfxt_material_set_uniform(&mat->material, "u_tex",  &tex->texture.hndl); 
+    gs_camera_t cam = gs_camera_perspective();
+    cam.transform.position.z = 20.f; 
+    gs_mat4 vp = gs_camera_get_view_projection(&cam, ws.x, ws.y);
+    gs_vqs xform = gs_vqs_default();
+    xform.scale = gs_v3s(1.f);
+    xform.rotation = gs_quat_angle_axis(gs_platform_elapsed_time() * 0.001f, GS_YAXIS);
+    gs_mat4 mvp = gs_mat4_mul(vp, gs_vqs_to_mat4(&xform)); 
+
+    material_set_uniform(mat, "u_mvp",  &mvp);
+    material_set_uniform(mat, "u_color",  &(gs_vec3){sin(gs_platform_elapsed_time() * 0.001f) * 0.5f + 0.5f, 0.f, 0.f});
+    material_set_uniform(mat, "u_tex",  &tex->texture.hndl); 
 
     // Render pass action for clearing the screen
     gs_graphics_clear_desc_t clear = (gs_graphics_clear_desc_t){
         .actions = &(gs_graphics_clear_action_t){.color = {0.1f, 0.1f, 0.1f, 1.f}}
-    };
-
-    // Binding descriptor for vertex buffer
-    gs_graphics_bind_desc_t binds = {
-        .vertex_buffers = {&(gs_graphics_bind_vertex_buffer_desc_t){.buffer = vbo}},
-        .index_buffers = {&(gs_graphics_bind_index_buffer_desc_t){.buffer = ibo}}
-    };
+    }; 
 
     gs_graphics_begin_render_pass(cb, GS_GRAPHICS_RENDER_PASS_DEFAULT);           // Begin render pass (default render pass draws to back buffer)
         gs_graphics_clear(cb, &clear);                                            // Clear screen
-        gs_gfxt_material_bind(cb, &mat->material);
-        gs_gfxt_material_bind_uniforms(cb, &mat->material);
-        gs_graphics_apply_bindings(cb, &binds);                                   // Bind all bindings (just vertex buffer)
-        gs_graphics_draw(cb, &(gs_graphics_draw_desc_t){.start = 0, .count = 6}); // Draw the triangle
+        gs_graphics_set_viewport(cb, 0, 0, (uint32_t)ws.x, (uint32_t)ws.y);       // Set render viewport
+        material_bind(cb, mat);                                                   // Bind material pipeline
+        material_bind_uniforms(cb, mat);                                          // Bind material uniforms
+        mesh_draw(cb, mesh);                                                      // Draw mesh
     gs_graphics_end_render_pass(cb);      
 
     gs_graphics_submit_command_buffer(cb); 

@@ -72,17 +72,32 @@ typedef struct asset_t
     uint32_t record_hndl;    // Handle to internal record for asset
 	asset_state state;
 
-} asset_t;
+} asset_t; 
+
+typedef struct asset_handle_t
+{ 
+    uint32_t hndl;              // Slot array handle to raw asset in importer
+    uint32_t importer;     // Slot array handle to raw Importer data in asset manager 
+} asset_handle_t;
+
+GS_API_DECL asset_handle_t asset_handle_invalid();
+GS_API_DECL asset_handle_t asset_handle_create(const asset_t* asset);
+GS_API_DECL asset_t* asset_handle_get(asset_handle_t* hndl);
 
 introspect()
 typedef struct mesh_t 
 {
-	base(asset_t)
+	base(asset_t) 
 	
 	// Fields
 	gs_gfxt_mesh_t mesh;
 
 } mesh_t;
+
+#define mesh_draw(CB, MESH)\
+    gs_gfxt_mesh_draw((CB), &((MESH)->mesh))
+
+GS_API_DECL bool mesh_t_load_resource_from_file(const char* path, asset_t* out, void* import_options /*gs_gfxt_mesh_import_options_t*/);
 
 introspect()
 typedef struct texture_t
@@ -134,8 +149,16 @@ typedef struct pipeline_t
 {
     base(asset_t)
 
+    ctor({
+        params(void),
+        func({
+            gs_println("PIPELINE CTOR");
+        })
+    })
+
     // Fields
     gs_gfxt_pipeline_t pipeline;
+    gs_dyn_array(gs_gfxt_mesh_layout_t) mesh_layout;
 
 } pipeline_t;
 
@@ -146,6 +169,7 @@ GS_API_DECL gs_gfxt_pipeline_t* get_pipeline_raw(GS_GFXT_HNDL hndl, void* user_d
 }
 
 GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* out, void* user_data);
+GS_API_DECL gs_gfxt_mesh_import_options_t pipeline_get_mesh_import_options(const pipeline_t* pipe);
 
 introspect()
 typedef struct material_t
@@ -153,23 +177,36 @@ typedef struct material_t
 	base(asset_t)
 
     ctor({
-        params(pipeline_t* pip),
+        params(asset_handle_t pip),
         func({
-            gs_assert(pip);
+            pipeline_t* pipe = asset_handle_get(&pip);
+            gs_assert(pipe);
+            this->pipeline = pip;
             this->material = gs_gfxt_material_create(&(gs_gfxt_material_desc_t){
                 .pip_func = {
                     .func = get_pipeline_raw,
-                    .hndl = pip
+                    .hndl = pipe
                 }
             });
             gs_assert(this->material.desc.pip_func.hndl);
         })
     })
 
-	// Fields
+	// Fields 
+    field()
+    asset_handle_t pipeline;
+
 	gs_gfxt_material_t material;
 
 } material_t;
+
+GS_API_DECL void material_set_uniform(material_t* mat, const char* name, void* data); 
+
+#define material_bind(CB, MAT)\
+    gs_gfxt_material_bind((CB), &((MAT)->material))
+
+#define material_bind_uniforms(CB, MAT)\
+    gs_gfxt_material_bind_uniforms((CB), &((MAT)->material)) 
 
 // VTable functions
 GS_API_DECL gs_result material_t_serialize(gs_byte_buffer_t* buffer, object_t* in);
@@ -237,7 +274,7 @@ typedef struct asset_manager_t
 
 GS_API_DECL void assets_init(asset_manager_t* am, const char* root_path);
 GS_API_DECL const char* assets_get_internal_file_extension(const char* ext);
-GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data, bool serialize_to_disk);
+GS_API_DECL asset_handle_t assets_import(asset_manager_t* am, const char* path, void* user_data, bool serialize_to_disk);
 GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* path, const asset_t* in);
 GS_API_DECL gs_result assets_deserialize_asset(asset_manager_t* am, const char*path, asset_t* out);
 GS_API_DECL void* assets_get_data_internal(uint64_t cls_id);
@@ -325,10 +362,13 @@ GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_
 	}
 }
 
-GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user_data, bool serialize_to_disk)	
+GS_API_DECL asset_handle_t assets_import(asset_manager_t* am, const char* path, void* user_data, bool serialize_to_disk)	
 {
 	// Create record for asset, set path to asset using qualified name
 	asset_record_t record = {0};
+
+    // Asset handle to create and return
+    asset_handle_t asset_hndl = asset_handle_invalid();
 
 	// Get importer from importers
 	gs_transient_buffer(FILE_EXT, 10);
@@ -336,12 +376,13 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 
 	if (!gs_hash_table_exists(am->fe2importer, gs_hash_str64(FILE_EXT)))
 	{
-		return;
+        gs_println("error::asset_import::impoter does not exist for file extension %s", FILE_EXT);
+		return asset_hndl;
 	}
 
 	// Get asset storage
-	uint32_t hndl = gs_hash_table_get(am->fe2importer, gs_hash_str64(FILE_EXT));
-	asset_importer_t* importer = gs_slot_array_get(am->importers, hndl);
+	uint32_t importer_hndl = gs_hash_table_get(am->fe2importer, gs_hash_str64(FILE_EXT));
+	asset_importer_t* importer = gs_slot_array_get(am->importers, importer_hndl); 
 
 	// Get class id from storage
 	uint64_t id = importer->asset_cls_id;
@@ -369,7 +410,7 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
 	record.uuid = gs_platform_uuid_generate(); 
 
 	// Need to construct asset type here using vtable
-    asset_t* asset = obj_newid(id);
+    asset_t* asset = obj_newid(id); 
 	gs_assert(asset); 
 
 	// Construct raw asset (this will also place into storage and give asset the record's handle)
@@ -401,7 +442,13 @@ GS_API_DECL void assets_import(asset_manager_t* am, const char* path, void* user
         {
 		    assets_serialize_asset(am, record.path, asset);
         }
+
+        // Set asset handle data
+        asset_hndl.hndl = hndl; 
+        asset_hndl.importer = importer_hndl;
 	}
+
+    return asset_hndl;
 }
 
 GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* path, const asset_t* in)
@@ -409,7 +456,7 @@ GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* pa
     // Get class id
     uint64_t id = obj_id(in);
 
-    // Get asset storage based on type of asset
+    // Get asset importer based on type of asset
     uint32_t sid = gs_hash_table_get(am->cid2importer, id);
     asset_importer_t* importer = gs_slot_array_get(am->importers, sid);
     const asset_record_t* record = gs_slot_array_getp(importer->records, in->record_hndl);
@@ -532,6 +579,9 @@ void asset_recurse_dir(const char* path, DIR* dir)
 // Set root path, begin importing all assets
 GS_API_DECL void assets_init(asset_manager_t* am, const char* path)
 {
+    // Set global asset manager instance
+    _g_asset_manager = am;
+
 	// Clear all previous records, if necessary
 	memcpy(am->root_path, path, ASSET_STR_MAX);
 
@@ -557,6 +607,19 @@ GS_API_DECL void assets_init(asset_manager_t* am, const char* path)
         .file_extensions = {"sf"}, 
         .file_extensions_size = 1 * sizeof(char*),
         .file_extension = "pip"
+    })); 
+
+    // Register material importer
+    assets_register_importer(am, material_t, (&(asset_importer_desc_t){
+        .file_extension = "mat"
+    })); 
+
+    // Register mesh importer
+    assets_register_importer(am, mesh_t, (&(asset_importer_desc_t){
+        .load_resource_from_file = mesh_t_load_resource_from_file,
+        .file_extensions = {"glb", "gltf"}, 
+        .file_extensions_size = 2 * sizeof(char*),
+        .file_extension = "msh"
     })); 
 
 	// Open directory
@@ -641,6 +704,46 @@ GS_API_DECL void asset_qualified_name(const char* src, char* dst, size_t sz)
 		// Need the last remainder of the string as well
 		gs_dyn_array_free(splits);
 	}
+}
+
+//=======[ Asset Handle ]==============================================================
+
+GS_API_DECL asset_handle_t asset_handle_invalid()
+{
+    return (asset_handle_t){
+        .hndl = UINT32_MAX,
+        .importer = UINT32_MAX
+    };
+}
+
+GS_API_DECL asset_handle_t asset_handle_create(const asset_t* asset)
+{ 
+    // Get asset manager instance
+    asset_manager_t* am = asset_manager_instance(); 
+
+    // Get asset importer based on type of asset
+    const uint32_t id = obj_id(asset);
+    uint32_t iid = gs_hash_table_get(am->cid2importer, id);
+    asset_importer_t* importer = gs_slot_array_get(am->importers, iid);
+
+    // Get record for asset
+    const asset_record_t* record = gs_slot_array_getp(importer->records, asset->record_hndl); 
+
+    // Construct asset handle
+    asset_handle_t hndl = (asset_handle_t){
+        .hndl = record->hndl, 
+        .importer = iid
+    };
+
+    return hndl;
+}
+
+GS_API_DECL asset_t* asset_handle_get(asset_handle_t* hndl)
+{
+    // Get raw asset from slot handles 
+    const asset_manager_t* am = asset_manager_instance();
+    const asset_importer_t* importer = gs_slot_array_get(am->importers, hndl->importer);
+    return gs_slot_array_get(importer->assets, hndl->hndl);
 }
 
 //=======[ Texture ]==================================================================
@@ -757,13 +860,20 @@ GS_API_DECL bool font_t_load_resource_from_file(const char* path, asset_t* out, 
 
 //=======[ Mesh ]=====================================================================
 
-GS_API_DECL bool mesh_t_load_resource_from_file(const char* path, asset_t* out, void* user_data)
+GS_API_DECL bool mesh_t_load_resource_from_file(const char* path, asset_t* out, void* import_options /*gs_gfxt_mesh_import_options_t*/)
 {
 	// Need to load up data, store in storage (slot array), then return pointer to asset for serialization.
 	mesh_t* mesh = (mesh_t*)out;
-	mesh->mesh = gs_gfxt_mesh_load_from_file(path, user_data);
+	mesh->mesh = gs_gfxt_mesh_load_from_file(path, import_options);
 	return true;
 } 
+
+//=======[ Material ]================================================================= 
+
+GS_API_DECL void material_set_uniform(material_t* mat, const char* name, void* data)
+{
+    gs_gfxt_material_set_uniform(&mat->material, name, data);
+}
 
 //=======[ Pipeline ]================================================================= 
 
@@ -781,6 +891,7 @@ typedef struct shader_out_data_t
 typedef struct pipeline_parse_data_t 
 { 
     gs_dyn_array(shader_out_data_t) out_list[2];
+    gs_dyn_array(gs_gfxt_mesh_layout_t) mesh_layout;
     char* code[2];
 } ppd_t; 
 
@@ -965,6 +1076,104 @@ void parse_code(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd, gs_g
     }
 }
 
+void parse_vertex_buffer_attributes(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
+{
+}
+
+gs_gfxt_mesh_attribute_type mesh_attribute_type_from_token(const gs_token_t* token)
+{
+    if (gs_token_compare_text(token, "POSITION"))       return GS_GFXT_MESH_ATTRIBUTE_TYPE_POSITION;
+    else if (gs_token_compare_text(token, "NORMAL"))    return GS_GFXT_MESH_ATTRIBUTE_TYPE_NORMAL;
+    else if (gs_token_compare_text(token, "TEXCOORD"))  return GS_GFXT_MESH_ATTRIBUTE_TYPE_TEXCOORD;
+    else if (gs_token_compare_text(token, "COLOR"))     return GS_GFXT_MESH_ATTRIBUTE_TYPE_COLOR;
+
+    // Default
+    return 0x00;
+    // else if (gs_token_compare_text(token, "TANGENT"))   return GS_GFXT_MESH_ATTRIBUTE_TYPE_TANGENT;
+    // else if (gs_token_compare_text(token, "JOINT"))     return GS_GFXT_MESH_ATTRIBUTE_TYPE_JOINT;
+    // else if (gs_token_compare_text(token, "WEIGHT"))    return GS_GFXT_MESH_ATTRIBUTE_TYPE_WEIGHT;
+}
+
+void parse_vertex_mesh_attributes(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
+{
+	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
+    { 
+        gs_assert(false);
+    } 
+
+    uint32_t bc = 1; 
+    while (bc)
+    {
+        gs_token_t token = lex->next_token(lex);
+        switch (token.type)
+        { 
+            case GS_TOKEN_LBRACE: {bc++;} break; 
+            case GS_TOKEN_RBRACE: {bc--;} break;
+            
+            case GS_TOKEN_IDENTIFIER: 
+            {
+                // Get mesh attribute type from  
+                gs_gfxt_mesh_attribute_type mesh_type = mesh_attribute_type_from_token(&token);
+
+                // Build vertex attribute desc
+                gs_graphics_vertex_attribute_desc_t attr = {0}; 
+                // attr.format = get_vertex_attribute_from_token(&token); 
+
+                // Get attribute name
+                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+                {
+                    gs_assert(false);
+                } 
+
+                token = lex->current_token;
+                memcpy(attr.name, token.text, token.len); 
+
+                switch (mesh_type)
+                {
+                    default: 
+                    {
+                    } break;
+
+                    case GS_GFXT_MESH_ATTRIBUTE_TYPE_POSITION: 
+                    {
+                        attr.format = GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT3; 
+                    } break;
+
+                    case GS_GFXT_MESH_ATTRIBUTE_TYPE_NORMAL: 
+                    {
+                        attr.format = GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT3; 
+                    } break;
+
+                    case GS_GFXT_MESH_ATTRIBUTE_TYPE_TEXCOORD:
+                    {
+                        attr.format = GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT2; 
+                    } break;
+
+                    case GS_GFXT_MESH_ATTRIBUTE_TYPE_COLOR:
+                    {
+                        attr.format = GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE4; 
+                    } break;
+
+                    /*
+                    GS_GFXT_MESH_ATTRIBUTE_TYPE_TANGENT,
+                    GS_GFXT_MESH_ATTRIBUTE_TYPE_JOINT,
+                    GS_GFXT_MESH_ATTRIBUTE_TYPE_WEIGHT,
+                    */
+                }
+                
+                // Push back mesh buffer
+                gs_dyn_array_push(ppd->mesh_layout, (gs_gfxt_mesh_layout_t){.type = mesh_type}); 
+
+                // Push back into layout
+                gs_dyn_array_push(desc->pip_desc.layout.attrs, attr);
+
+
+                // TODO(): Need to do idx as well for later...
+            }
+        }
+    }
+}
+
 void parse_vertex_attributes(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
 {
 	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
@@ -983,19 +1192,17 @@ void parse_vertex_attributes(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd
             
             case GS_TOKEN_IDENTIFIER: {
 
-                gs_graphics_vertex_attribute_desc_t attr = {0}; 
-                attr.format = get_vertex_attribute_from_token(&token); 
-
-                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+                // Parse mesh attributes
+                if (gs_token_compare_text(&token, "mesh"))
                 {
-                    gs_assert(false);
+                    parse_vertex_mesh_attributes(lex, desc, ppd);
+                }
+
+                // Parse buffer attributes
+                else if (gs_token_compare_text(&token, "buffer"))
+                {
+                    parse_vertex_buffer_attributes(lex, desc, ppd);
                 } 
-
-                token = lex->current_token;
-                memcpy(attr.name, token.text, token.len);
-
-                // Push back into layout
-                gs_dyn_array_push(desc->pip_desc.layout.attrs, attr);
 
             } break;
         }
@@ -1240,7 +1447,7 @@ GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* o
     char* v_src = pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_VERTEX);
 
     // Generate fragment shader code
-    char* f_src = pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_FRAGMENT);
+    char* f_src = pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_FRAGMENT); 
 
     // Construct shader for pdesc 
     pdesc.pip_desc.raster.shader = gs_graphics_shader_create(&(gs_graphics_shader_desc_t){
@@ -1254,6 +1461,11 @@ GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* o
 
     // Set up raster
     pdesc.pip_desc.raster.index_buffer_element_size = sizeof(uint32_t); 
+    
+    // Set up depth
+    pdesc.pip_desc.depth = (gs_graphics_depth_state_desc_t){
+        .func = GS_GRAPHICS_DEPTH_FUNC_LESS
+    };
 
     // Set up layout
     pdesc.pip_desc.layout.size = gs_dyn_array_size(pdesc.pip_desc.layout.attrs) * sizeof(gs_graphics_vertex_attribute_desc_t);
@@ -1261,14 +1473,53 @@ GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* o
     // Set up ublock
     pdesc.ublock_desc.size = gs_dyn_array_size(pdesc.ublock_desc.layout) * sizeof(gs_gfxt_uniform_desc_t); 
 
-    // Free all malloc'd data 
+    // Create pipeline
     pip->pipeline = gs_gfxt_pipeline_create(&pdesc);
 
+    // Create mesh layout
+    for (uint32_t i = 0; i < gs_dyn_array_size(ppd.mesh_layout); ++i)
+    {
+        gs_dyn_array_push(pip->mesh_layout, ppd.mesh_layout[i]);
+    }
+
+    // Free all malloc'd data 
     gs_free(v_src);
     gs_free(f_src); 
     gs_free(file_data); 
+    gs_dyn_array_free(pdesc.pip_desc.layout.attrs);
+    gs_dyn_array_free(pdesc.ublock_desc.layout);
+    gs_dyn_array_free(ppd.mesh_layout);
+    
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        if (ppd.code[i]) gs_free(ppd.code[i]);
+        gs_dyn_array_free(ppd.out_list[i]);
+    }
 
     return true;
+}
+
+GS_API_DECL gs_gfxt_mesh_import_options_t pipeline_get_mesh_import_options(const pipeline_t* pipe)
+{ 
+    // Get pipeline descriptor
+    gs_graphics_pipeline_desc_t pdesc = gs_default_val();
+    gs_graphics_pipeline_desc_query(pipe->pipeline.hndl, &pdesc);
+
+    // Construct mesh import options
+    gs_gfxt_mesh_import_options_t options = gs_default_val(); 
+    options.index_buffer_element_size = pdesc.raster.index_buffer_element_size; 
+
+    // Copy mesh layout from pipeline
+    for (uint32_t i = 0; i < gs_dyn_array_size(pipe->mesh_layout); ++i)
+    {
+        gs_dyn_array_push(options.layout, pipe->mesh_layout[i]);
+    }
+    options.size = sizeof(gs_gfxt_mesh_layout_t) * gs_dyn_array_size(options.layout);
+
+    // Free pipeline descriptor
+    gs_dyn_array_free(pdesc.layout.attrs);
+
+    return options;
 }
 
 #endif // ASSET_IMPL

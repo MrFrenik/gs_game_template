@@ -79,6 +79,34 @@ GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb);
 GS_API_DECL void quad_batch_add(quad_batch_t* qb, const gs_vec2* position, const gs_vec2* dimensions, const gs_vec4* uvs, const gs_color_t* color, float depth);
 GS_API_PRIVATE void quad_batch_sort(quad_batch_t* qb);
 
+/*
+ 
+    typedef struct renderable_base_t
+    { 
+        uint32_t hndl;                          // Slot array renderable id handle
+        gs_mat4 model_matrix;                   // Model matrix
+        gs_dyn_array(asset_handle_t) materials; // Per primitive materials
+    } renderable_base_t;
+
+    typedef struct renderable_static_mesh_t
+    {
+        base(renderable_base_t)
+
+        asset_handle_t mesh;                    // Asset handle for static mesh
+
+    } renderable_static_mesh_t;
+
+    typedef struct renderable_skeletal_mesh_t
+    {
+        base(renderable_base_t)
+
+        asset_handle_t mesh;                    // Asset handle for skeletal mesh
+
+    } renderable_static_mesh_t;
+
+ */
+
+// Base renderable
 typedef struct renderable_t
 { 
 	// Fields

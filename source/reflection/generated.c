@@ -175,6 +175,10 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 
 	// material_t
 	gs_meta_class_register(meta, (&(gs_meta_class_decl_t) {
+		.properties = (gs_meta_property_t[]) {
+			gs_meta_property(material_t, asset_handle_t, pipeline, GS_META_PROPERTY_TYPE_INFO_OBJ)
+		},
+		.size = 1 * sizeof(gs_meta_property_t),
 		.vtable = &material_t_vt,
 		.name = gs_to_str(material_t),
 		.base = gs_to_str(asset_t),
@@ -564,18 +568,24 @@ GS_API_DECL void obj_on_destroy_335738428(object_t* obj)
 
 // == pipeline_t API == //
 
-GS_API_DECL pipeline_t obj_ctor_3640749902()
+GS_API_DECL pipeline_t obj_ctor_3640749902(void)
 {
 	pipeline_t _obj = gs_default_val();
 	pipeline_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(pipeline_t);
+	{
+            gs_println("PIPELINE CTOR");
+        }
 	return _obj;
 }
-GS_API_DECL object_t* obj_new_3640749902()
+GS_API_DECL object_t* obj_new_3640749902(void)
 {
 	pipeline_t* _obj = gs_malloc_init(pipeline_t);
 	pipeline_t* this = _obj;
 	cast(this, object_t)->cls_id = obj_sid(pipeline_t);
+	{
+            gs_println("PIPELINE CTOR");
+        }
 	return (object_t*)_obj;
 }
 
@@ -666,34 +676,38 @@ GS_API_DECL void obj_on_destroy_1910793471(object_t* obj)
 
 // == material_t API == //
 
-GS_API_DECL material_t obj_ctor_2657371751(pipeline_t* pip)
+GS_API_DECL material_t obj_ctor_2657371751(asset_handle_t pip)
 {
 	material_t _obj = gs_default_val();
 	material_t* this = &_obj;
 	cast(this, object_t)->cls_id = obj_sid(material_t);
 	{
-            gs_assert(pip);
+            pipeline_t* pipe = asset_handle_get(&pip);
+            gs_assert(pipe);
+            this->pipeline = pip;
             this->material = gs_gfxt_material_create(&(gs_gfxt_material_desc_t){
                 .pip_func = {
                     .func = get_pipeline_raw,
-                    .hndl = pip
+                    .hndl = pipe
                 }
             });
             gs_assert(this->material.desc.pip_func.hndl);
         }
 	return _obj;
 }
-GS_API_DECL object_t* obj_new_2657371751(pipeline_t* pip)
+GS_API_DECL object_t* obj_new_2657371751(asset_handle_t pip)
 {
 	material_t* _obj = gs_malloc_init(material_t);
 	material_t* this = _obj;
 	cast(this, object_t)->cls_id = obj_sid(material_t);
 	{
-            gs_assert(pip);
+            pipeline_t* pipe = asset_handle_get(&pip);
+            gs_assert(pipe);
+            this->pipeline = pip;
             this->material = gs_gfxt_material_create(&(gs_gfxt_material_desc_t){
                 .pip_func = {
                     .func = get_pipeline_raw,
-                    .hndl = pip
+                    .hndl = pipe
                 }
             });
             gs_assert(this->material.desc.pip_func.hndl);

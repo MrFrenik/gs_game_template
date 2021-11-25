@@ -100,7 +100,6 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define obj_sid(T)                   gs_hash_str64(gs_to_str(T))    // Get object class id from static type
 #define obj_vtable_w_id(ID)          (&(gs_hash_table_getp(meta_get_instance()->registry.classes, ID)->vtable)) // Get vtable for class
 #define obj_func_w_id(ID, NAME)      gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), NAME) // Get function in vtable based on name
-#define obj_new(T)                   _obj_new_internal(obj_sid(T)) // Heap allocate object of type based on type
 #define obj_newid(ID)                _obj_new_internal(ID) // Heap allocate object based on cls id 
 
 #define obj_ctor(T, ...)                T##_ctor(__VA_ARGS__) 
