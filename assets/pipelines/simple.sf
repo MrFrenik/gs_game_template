@@ -3,6 +3,9 @@
 pipeline { 
 
     raster { 
+        face_culling: NONE
+        primitive: LINES
+        winding_order: CW
         index_buffer_element_size: UINT32
     },
 
@@ -11,6 +14,9 @@ pipeline {
     },
 
     blend {
+        func: ADD
+        src:  ONE
+        dst:  ONE_MINUS_SRC_COLOR
     },
 
     stencil {
@@ -38,8 +44,10 @@ pipeline {
             },
 
             code { 
-                gl_Position = u_mvp * vec4(a_position, 1.0);
-                uv = vec2(a_uv.x, -a_uv.y);
+                void main() {
+                    gl_Position = u_mvp * vec4(a_position, 1.0);
+                    uv = vec2(a_uv.x, -a_uv.y);
+                }
             }
         },
 
@@ -55,7 +63,9 @@ pipeline {
             },
 
             code {
-                frag_color = texture(u_tex, uv) * vec4(u_color, 1.0);
+                void main() {
+                    frag_color = texture(u_tex, uv) * vec4(u_color, 1.0);
+                }
             }
         } 
     } 

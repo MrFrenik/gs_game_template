@@ -895,6 +895,47 @@ typedef struct pipeline_parse_data_t
     char* code[2];
 } ppd_t; 
 
+#define parse_warning(TXT, ...)\
+    do {\
+        gs_printf("WARNING::");\
+        gs_printf(TXT, __VA_ARGS__);\
+        gs_println("");\
+    } while (0)
+
+#define parse_error(TXT, ASSERT, ...)\
+    do {\
+        gs_printf("ERROR::");\
+        gs_printf(TXT, __VA_ARGS__);\
+        gs_println("");\
+        if (ASSERT) gs_assert(false);\
+    } while (0)
+
+#define parse_block(NAME, ...)\
+    do {\
+        gs_println("pipeline_t_load_resource_from_file::parsing::%s", #NAME);\
+        if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE))\
+        {\
+            gs_println("error::pipeline_t_load_resource_from_file::error parsing raster from .sf resource");\
+            gs_assert(false);\
+        }\
+\
+        uint32_t bc = 1;\
+        while (bc)\
+        {\
+            gs_token_t token = lex->next_token(lex);\
+            switch (token.type)\
+            {\
+                case GS_TOKEN_LBRACE: {bc++;} break;\
+                case GS_TOKEN_RBRACE: {bc--;} break;\
+\
+                case GS_TOKEN_IDENTIFIER:\
+                {\
+                    __VA_ARGS__\
+                }\
+            }\
+        }\
+    } while (0)
+
 const char* get_vertex_attribute_string(gs_graphics_vertex_attribute_type type)
 { 
     switch (type)
@@ -1295,6 +1336,380 @@ void parse_shader(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
     }
 }
 
+void parse_depth(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* pdesc, ppd_t* ppd)
+{
+    parse_block(
+    PIPELINE::DEPTH,
+    { 
+        // Depth function
+        if (gs_token_compare_text(&token, "func"))
+        {
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::DEPTH::func type not found after function decl.");
+            }
+
+            token = lex->current_token;
+            
+            if      (gs_token_compare_text(&token, "LESS"))     pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_LESS;
+            else if (gs_token_compare_text(&token, "EQUAL"))    pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_EQUAL;
+            else if (gs_token_compare_text(&token, "LEQUAL"))   pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_LEQUAL;
+            else if (gs_token_compare_text(&token, "GREATER"))  pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_GREATER;
+            else if (gs_token_compare_text(&token, "NOTEQUAL")) pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_NOTEQUAL;
+            else if (gs_token_compare_text(&token, "GEQUAL"))   pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_GEQUAL;
+            else if (gs_token_compare_text(&token, "ALWAYS"))   pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_ALWAYS; 
+            else if (gs_token_compare_text(&token, "NEVER"))    pdesc->pip_desc.depth.func = GS_GRAPHICS_DEPTH_FUNC_NEVER; 
+            else
+            {
+                parse_warning("PIPELINE::DEPTH::func type %.*s not valid.", token.len, token.text);
+            }
+        }
+    });
+}
+
+void parse_blend(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* pdesc, ppd_t* ppd)
+{
+    parse_block(
+    PIPELINE::BLEND,
+    { 
+        // Blend function
+        if (gs_token_compare_text(&token, "func"))
+        { 
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::BLEND::func type not found after function decl.");
+            }
+
+            token = lex->current_token;
+            
+            if      (gs_token_compare_text(&token, "ADD"))              pdesc->pip_desc.blend.func = GS_GRAPHICS_BLEND_EQUATION_ADD;
+            else if (gs_token_compare_text(&token, "SUBTRACT"))         pdesc->pip_desc.blend.func = GS_GRAPHICS_BLEND_EQUATION_SUBTRACT;
+            else if (gs_token_compare_text(&token, "REVERSE_SUBTRACT")) pdesc->pip_desc.blend.func = GS_GRAPHICS_BLEND_EQUATION_REVERSE_SUBTRACT;
+            else if (gs_token_compare_text(&token, "MIN"))              pdesc->pip_desc.blend.func = GS_GRAPHICS_BLEND_EQUATION_MIN;
+            else if (gs_token_compare_text(&token, "MAX"))              pdesc->pip_desc.blend.func = GS_GRAPHICS_BLEND_EQUATION_MAX;
+            else
+            {
+                parse_warning("PIPELINE::BLEND::func type %.*s not valid.", token.len, token.text);
+            } 
+        }
+
+        // Source blend
+        else if (gs_token_compare_text(&token, "src"))
+        {
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::BLEND::src type not found after decl.");
+            }
+
+            token = lex->current_token;
+            
+            if      (gs_token_compare_text(&token, "ZERO"))                     pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ZERO;
+            else if (gs_token_compare_text(&token, "ONE"))                      pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ONE; 
+            else if (gs_token_compare_text(&token, "SRC_COLOR"))                pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_SRC_COLOR; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_SRC_COLOR"))      pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_SRC_COLOR; 
+            else if (gs_token_compare_text(&token, "DST_COLOR"))                pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_DST_COLOR; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_DST_COLOR"))      pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_DST_COLOR; 
+            else if (gs_token_compare_text(&token, "SRC_ALPHA"))                pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_SRC_ALPHA; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_SRC_ALPHA"))      pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_SRC_ALPHA; 
+            else if (gs_token_compare_text(&token, "DST_ALPHA"))                pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_DST_ALPHA; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_DST_ALPHA"))      pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_DST_ALPHA; 
+            else if (gs_token_compare_text(&token, "CONSTANT_COLOR"))           pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_CONSTANT_COLOR; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_CONSTANT_COLOR")) pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_CONSTANT_ALPHA; 
+            else if (gs_token_compare_text(&token, "CONSTANT_ALPHA"))           pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_CONSTANT_ALPHA; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_CONSTANT_ALPHA")) pdesc->pip_desc.blend.src = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_CONSTANT_ALPHA; 
+            else
+            {
+                parse_warning("PIPELINE::BLEND::src type %.*s not valid.", token.len, token.text);
+            } 
+        }
+
+        // Dest blend
+        else if (gs_token_compare_text(&token, "dst"))
+        {
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::BLEND::dst type not found after decl.");
+            }
+
+            token = lex->current_token;
+            
+            if      (gs_token_compare_text(&token, "ZERO"))                     pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ZERO;
+            else if (gs_token_compare_text(&token, "ONE"))                      pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE; 
+            else if (gs_token_compare_text(&token, "SRC_COLOR"))                pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_SRC_COLOR; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_SRC_COLOR"))      pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_SRC_COLOR; 
+            else if (gs_token_compare_text(&token, "DST_COLOR"))                pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_DST_COLOR; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_DST_COLOR"))      pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_DST_COLOR; 
+            else if (gs_token_compare_text(&token, "SRC_ALPHA"))                pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_SRC_ALPHA; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_SRC_ALPHA"))      pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_SRC_ALPHA; 
+            else if (gs_token_compare_text(&token, "DST_ALPHA"))                pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_DST_ALPHA; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_DST_ALPHA"))      pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_DST_ALPHA; 
+            else if (gs_token_compare_text(&token, "CONSTANT_COLOR"))           pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_CONSTANT_COLOR; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_CONSTANT_COLOR")) pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_CONSTANT_ALPHA; 
+            else if (gs_token_compare_text(&token, "CONSTANT_ALPHA"))           pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_CONSTANT_ALPHA; 
+            else if (gs_token_compare_text(&token, "ONE_MINUS_CONSTANT_ALPHA")) pdesc->pip_desc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_CONSTANT_ALPHA; 
+            else
+            {
+                parse_warning("PIPELINE::BLEND::dst type %.*s not valid.", token.len, token.text);
+            } 
+        }
+
+    });
+}
+
+void parse_stencil(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* pdesc, ppd_t* ppd)
+{ 
+    parse_block(
+    PIPELINE::STENCIL,
+    { 
+        // Function
+        if (gs_token_compare_text(&token, "func"))
+        {
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::STENCIL::func type not found after decl.");
+            }
+
+            else
+            {
+                token = lex->current_token; 
+                
+                if      (gs_token_compare_text(&token, "LESS"))     pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_LESS;
+                else if (gs_token_compare_text(&token, "EQUAL"))    pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_EQUAL;
+                else if (gs_token_compare_text(&token, "LEQUAL"))   pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_LEQUAL;
+                else if (gs_token_compare_text(&token, "GREATER"))  pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_GREATER;
+                else if (gs_token_compare_text(&token, "NOTEQUAL")) pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_NOTEQUAL;
+                else if (gs_token_compare_text(&token, "GEQUAL"))   pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_GEQUAL;
+                else if (gs_token_compare_text(&token, "ALWAYS"))   pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_ALWAYS; 
+                else if (gs_token_compare_text(&token, "NEVER"))    pdesc->pip_desc.stencil.func = GS_GRAPHICS_STENCIL_FUNC_NEVER; 
+                else
+                {
+                    parse_warning("PIPELINE::STENCIL::func type %.*s not valid.", token.len, token.text);
+                } 
+            }
+
+        }
+
+        // Reference value
+        else if (gs_token_compare_text(&token, "ref"))
+        { 
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_NUMBER))
+            {
+                parse_error(false, "PIPELINE::STENCIL::reference value not found after decl."); 
+            }
+
+            else
+            {
+                token = lex->current_token; 
+                gs_snprintfc(TMP, 16, "%.*s", token.len, token.text);
+                pdesc->pip_desc.stencil.ref = atoi(TMP); 
+            }
+        }
+
+        // Component mask
+        else if (gs_token_compare_text(&token, "comp_mask"))
+        { 
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_NUMBER))
+            {
+                parse_error(false, "PIPELINE::STENCIL::component mask value not found after decl."); 
+            }
+
+            else
+            {
+                token = lex->current_token; 
+                gs_snprintfc(TMP, 16, "%.*s", token.len, token.text);
+                pdesc->pip_desc.stencil.comp_mask = atoi(TMP); 
+            }
+        }
+
+        // Write mask
+        else if (gs_token_compare_text(&token, "write_mask"))
+        { 
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_NUMBER))
+            {
+                parse_error(false, "PIPELINE::STENCIL::write mask value not found after decl."); 
+            }
+
+            else
+            {
+                token = lex->current_token; 
+                gs_snprintfc(TMP, 16, "%.*s", token.len, token.text);
+                pdesc->pip_desc.stencil.write_mask = atoi(TMP); 
+            }
+        }
+
+        // Stencil test failure
+        else if (gs_token_compare_text(&token, "sfail"))
+        { 
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::STENCIL::sfail value not found after decl."); 
+            }
+
+            else
+            {
+                token = lex->current_token; 
+
+                if (gs_token_compare_text(&token, "KEEP"))              pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_KEEP;
+                else if (gs_token_compare_text(&token, "ZERO"))         pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_ZERO;
+                else if (gs_token_compare_text(&token, "REPLACE"))      pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_REPLACE;
+                else if (gs_token_compare_text(&token, "INCR"))         pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_INCR;
+                else if (gs_token_compare_text(&token, "INCR_WRAP"))    pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_INCR_WRAP;
+                else if (gs_token_compare_text(&token, "DECR"))         pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_DECR;
+                else if (gs_token_compare_text(&token, "DECR_WRAP"))    pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_DECR_WRAP;
+                else if (gs_token_compare_text(&token, "INVERT"))       pdesc->pip_desc.stencil.sfail = GS_GRAPHICS_STENCIL_OP_INVERT;
+                else
+                {
+                    parse_warning("PIPELINE::STENCIL::sfail type %.*s not valid.", token.len, token.text);
+                } 
+            }
+        }
+
+        // Stencil test pass, Depth fail
+        else if (gs_token_compare_text(&token, "dpfail"))
+        { 
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::STENCIL::dpfail value not found after decl."); 
+            }
+
+            else
+            {
+                token = lex->current_token; 
+
+                if (gs_token_compare_text(&token, "KEEP"))              pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_KEEP;
+                else if (gs_token_compare_text(&token, "ZERO"))         pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_ZERO;
+                else if (gs_token_compare_text(&token, "REPLACE"))      pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_REPLACE;
+                else if (gs_token_compare_text(&token, "INCR"))         pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_INCR;
+                else if (gs_token_compare_text(&token, "INCR_WRAP"))    pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_INCR_WRAP;
+                else if (gs_token_compare_text(&token, "DECR"))         pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_DECR;
+                else if (gs_token_compare_text(&token, "DECR_WRAP"))    pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_DECR_WRAP;
+                else if (gs_token_compare_text(&token, "INVERT"))       pdesc->pip_desc.stencil.dpfail = GS_GRAPHICS_STENCIL_OP_INVERT;
+                else
+                {
+                    parse_warning("PIPELINE::STENCIL::dpfail type %.*s not valid.", token.len, token.text);
+                } 
+            }
+        }
+
+        // Stencil test pass, Depth pass
+        else if (gs_token_compare_text(&token, "dppass"))
+        { 
+            if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::STENCIL::dppass value not found after decl."); 
+            }
+
+            else
+            {
+                token = lex->current_token; 
+
+                if (gs_token_compare_text(&token, "KEEP"))              pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_KEEP;
+                else if (gs_token_compare_text(&token, "ZERO"))         pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_ZERO;
+                else if (gs_token_compare_text(&token, "REPLACE"))      pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_REPLACE;
+                else if (gs_token_compare_text(&token, "INCR"))         pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_INCR;
+                else if (gs_token_compare_text(&token, "INCR_WRAP"))    pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_INCR_WRAP;
+                else if (gs_token_compare_text(&token, "DECR"))         pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_DECR;
+                else if (gs_token_compare_text(&token, "DECR_WRAP"))    pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_DECR_WRAP;
+                else if (gs_token_compare_text(&token, "INVERT"))       pdesc->pip_desc.stencil.dppass = GS_GRAPHICS_STENCIL_OP_INVERT;
+                else
+                {
+                    parse_warning("PIPELINE::STENCIL::dppass type %.*s not valid.", token.len, token.text);
+                } 
+            }
+        }
+    });
+}
+
+void parse_raster(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* pdesc, ppd_t* ppd)
+{
+    parse_block(
+    PIPELINE::RASTER,
+    { 
+        // Index Buffer Element Size 
+        if (gs_token_compare_text(&token, "index_buffer_element_size"))
+        { 
+	        if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::RASTER::index buffer element size not found.", token.len, token.text);
+            }
+            
+            token = lex->current_token;
+
+            if (gs_token_compare_text(&token, "UINT32") || gs_token_compare_text(&token, "uint32_t") || gs_token_compare_text(&token, "u32"))
+            { 
+                pdesc->pip_desc.raster.index_buffer_element_size = sizeof(uint32_t); 
+            }
+
+            else if (gs_token_compare_text(&token, "UINT16") || gs_token_compare_text(&token, "uint16_t") || gs_token_compare_text(&token, "u16"))
+            {
+                pdesc->pip_desc.raster.index_buffer_element_size = sizeof(uint16_t); 
+            }
+            
+            // Default
+            else
+            {
+                pdesc->pip_desc.raster.index_buffer_element_size = sizeof(uint32_t); 
+            }
+        } 
+
+        // Face culling 
+        if (gs_token_compare_text(&token, "face_culling"))
+        { 
+	        if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::RASTER::face culling type not found.");
+            }
+            
+            token = lex->current_token;
+
+            if (gs_token_compare_text(&token, "FRONT"))               pdesc->pip_desc.raster.face_culling = GS_GRAPHICS_FACE_CULLING_FRONT;
+            else if (gs_token_compare_text(&token, "BACK"))           pdesc->pip_desc.raster.face_culling = GS_GRAPHICS_FACE_CULLING_BACK;
+            else if (gs_token_compare_text(&token, "FRONT_AND_BACK")) pdesc->pip_desc.raster.face_culling = GS_GRAPHICS_FACE_CULLING_FRONT_AND_BACK;
+            else
+            {
+                parse_warning("PIPELINE::RASTER::face culling type %.*s not valid.", token.len, token.text);
+            }
+        } 
+
+        // Winding order 
+        if (gs_token_compare_text(&token, "winding_order"))
+        { 
+	        if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::RASTER::winding order type not found.");
+            }
+            
+            token = lex->current_token;
+
+            if (gs_token_compare_text(&token, "CW"))         pdesc->pip_desc.raster.face_culling = GS_GRAPHICS_WINDING_ORDER_CW;
+            else if (gs_token_compare_text(&token, "CCW"))   pdesc->pip_desc.raster.face_culling = GS_GRAPHICS_WINDING_ORDER_CCW;
+            else
+            {
+                parse_warning("PIPELINE::RASTER::winding order type %.*s not valid.", token.len, token.text);
+            }
+        } 
+
+        // Primtive 
+        if (gs_token_compare_text(&token, "primitive"))
+        { 
+	        if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER))
+            {
+                parse_error(false, "PIPELINE::RASTER::primitive type not found.");
+            }
+            
+            token = lex->current_token;
+
+            if (gs_token_compare_text(&token, "LINES"))            pdesc->pip_desc.raster.primitive = GS_GRAPHICS_PRIMITIVE_LINES;
+            else if (gs_token_compare_text(&token, "TRIANGLES"))   pdesc->pip_desc.raster.primitive = GS_GRAPHICS_PRIMITIVE_TRIANGLES;
+            else if (gs_token_compare_text(&token, "QUADS"))       pdesc->pip_desc.raster.primitive = GS_GRAPHICS_PRIMITIVE_QUADS;
+            else
+            {
+                parse_warning("PIPELINE::RASTER::primitive type %.*s not valid.", token.len, token.text);
+            }
+        } 
+    });
+}
+
 void parse_pipeline(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
 { 
     // Get next identifier
@@ -1310,6 +1725,27 @@ void parse_pipeline(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, ppd_t* ppd)
                     gs_println("parsing shader");
                     parse_shader(lex, desc, ppd);
                 }
+
+                else if (gs_token_compare_text(&token, "raster"))
+                {
+                    parse_raster(lex, desc, ppd); 
+                }
+
+                else if (gs_token_compare_text(&token, "depth"))
+                {
+                    parse_depth(lex, desc, ppd);
+                }
+
+                else if (gs_token_compare_text(&token, "stencil"))
+                {
+                    parse_stencil(lex, desc, ppd);
+                }
+
+                else if (gs_token_compare_text(&token, "blend"))
+                {
+                    parse_blend(lex, desc, ppd);
+                }
+
             } break;
         }
     }
@@ -1404,10 +1840,8 @@ char* pipeline_generate_shader_code(gs_gfxt_pipeline_desc_t* pdesc, ppd_t* ppd, 
 
         // Code
         { 
-            strncat(src, "void main() {\n", 15); 
             const size_t sz = gs_string_length(ppd->code[sidx]);
             strncat(src, ppd->code[sidx], sz); 
-            strncat(src, "}", 1); 
         } 
     } 
 
@@ -1426,6 +1860,7 @@ GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* o
 
     ppd_t ppd = {0};
     gs_gfxt_pipeline_desc_t pdesc = {0};
+    pdesc.pip_desc.raster.index_buffer_element_size = sizeof(uint32_t); 
 
 	gs_lexer_t lex = gs_lexer_c_ctor(file_data);
     while (lex.can_lex(&lex))
@@ -1457,15 +1892,8 @@ GS_API_DECL bool pipeline_t_load_resource_from_file(const char* path, asset_t* o
         },
         .size = 2 * sizeof(gs_graphics_shader_source_desc_t),
         .name = path
-    });
-
-    // Set up raster
-    pdesc.pip_desc.raster.index_buffer_element_size = sizeof(uint32_t); 
+    }); 
     
-    // Set up depth
-    pdesc.pip_desc.depth = (gs_graphics_depth_state_desc_t){
-        .func = GS_GRAPHICS_DEPTH_FUNC_LESS
-    };
 
     // Set up layout
     pdesc.pip_desc.layout.size = gs_dyn_array_size(pdesc.pip_desc.layout.attrs) * sizeof(gs_graphics_vertex_attribute_desc_t);
