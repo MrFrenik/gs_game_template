@@ -278,6 +278,32 @@ GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)
 	}));
 
 	// vtable
+	gs_meta_vtable_t component_static_mesh_t_vt = gs_default_val();
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_on_create)), (void*)obj_on_create_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_on_start)), (void*)obj_on_start_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_on_stop)), (void*)obj_on_stop_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_on_update)), (void*)obj_on_update_2159547720);
+	gs_hash_table_insert(component_static_mesh_t_vt.funcs, gs_hash_str64(gs_to_str(obj_on_destroy)), (void*)obj_on_destroy_2159547720);
+
+	// component_static_mesh_t
+	gs_meta_class_register(meta, (&(gs_meta_class_decl_t) {
+		.properties = (gs_meta_property_t[]) {
+			gs_meta_property(component_static_mesh_t, uint32_t, renderable_id, GS_META_PROPERTY_TYPE_INFO_U32),
+			gs_meta_property(component_static_mesh_t, graphics_scene_t, scene, GS_META_PROPERTY_TYPE_INFO_OBJ)
+		},
+		.size = 2 * sizeof(gs_meta_property_t),
+		.vtable = &component_static_mesh_t_vt,
+		.name = gs_to_str(component_static_mesh_t),
+		.base = gs_to_str(component_base_t),
+		.cls_size = sizeof(component_static_mesh_t)
+	}));
+
+	// vtable
 	gs_meta_vtable_t component_physics_t_vt = gs_default_val();
 	gs_hash_table_insert(component_physics_t_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_3852747479);
 	gs_hash_table_insert(component_physics_t_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_3852747479);
@@ -431,8 +457,7 @@ GS_API_DECL void obj_on_update_3141622024(object_t* obj)
 {
 	component_rotation_t* this = (component_rotation_t*)obj;
 	{ 
-        app_t* app = gs_engine_user_data(app_t); 
-        entity_manager_t* em = &app->core->entities; 
+        entity_manager_t* em = entity_manager_instance(); 
 
         // Update rotation
         const float _t = gs_platform_elapsed_time();
@@ -956,6 +981,71 @@ GS_API_DECL void obj_on_update_1947392792(object_t* obj)
 }
 
 GS_API_DECL void obj_on_destroy_1947392792(object_t* obj)
+{
+}
+
+// == component_static_mesh_t API == //
+
+GS_API_DECL component_static_mesh_t obj_ctor_2159547720(graphics_scene_t* scene)
+{
+	component_static_mesh_t _obj = gs_default_val();
+	component_static_mesh_t* this = &_obj;
+	cast(this, object_t)->cls_id = obj_sid(component_static_mesh_t);
+	{
+            renderable_static_mesh_t rend = {0};
+            this->renderable_id = graphics_scene_add_renderable_static_mesh(scene, rend);
+            this->scene = scene;
+        }
+	return _obj;
+}
+GS_API_DECL object_t* obj_new_2159547720(graphics_scene_t* scene)
+{
+	component_static_mesh_t* _obj = gs_malloc_init(component_static_mesh_t);
+	component_static_mesh_t* this = _obj;
+	cast(this, object_t)->cls_id = obj_sid(component_static_mesh_t);
+	{
+            renderable_static_mesh_t rend = {0};
+            this->renderable_id = graphics_scene_add_renderable_static_mesh(scene, rend);
+            this->scene = scene;
+        }
+	return (object_t*)_obj;
+}
+
+GS_API_DECL void obj_dtor_2159547720(object_t* obj)
+{
+}
+
+GS_API_DECL gs_result obj_serialize_2159547720(gs_byte_buffer_t* buffer, const object_t* in)
+{
+	return GS_RESULT_INCOMPLETE;
+}
+
+GS_API_DECL gs_result obj_deserialize_2159547720(gs_byte_buffer_t* buffer, object_t* out)
+{
+	return GS_RESULT_INCOMPLETE;
+}
+
+GS_API_DECL void obj_on_create_2159547720(object_t* obj)
+{
+}
+
+GS_API_DECL void obj_on_start_2159547720(object_t* obj)
+{
+}
+
+GS_API_DECL void obj_on_stop_2159547720(object_t* obj)
+{
+}
+
+GS_API_DECL void obj_on_update_2159547720(object_t* obj)
+{
+	component_static_mesh_t* this = (component_static_mesh_t*)obj;
+	{ 
+        component_static_mesh_update(this);
+    }
+}
+
+GS_API_DECL void obj_on_destroy_2159547720(object_t* obj)
 {
 }
 

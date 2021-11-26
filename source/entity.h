@@ -160,6 +160,7 @@ typedef struct entity_manager_t
 	component_data_t* cd; // Temporary pointer to component data for macro accessor
 } entity_manager_t;
 
+GS_API_DECL void entity_manager_init(entity_manager_t* entities);
 GS_API_DECL uint32_t entities_allocate(entity_manager_t* entities);
 GS_API_DECL void entities_deallocate(entity_manager_t* entities, uint32_t hndl);
 GS_API_DECL bool _entities_has_component_internal(entity_manager_t* entities, uint64_t cid, entity_handle_t ent);
@@ -167,6 +168,9 @@ GS_API_DECL void entities_free(entity_manager_t* entities);
 GS_API_DECL bool entities_entity_is_valid(entity_manager_t* entities, uint32_t hndl); 
 GS_API_DECL void entities_remove_component_w_id(entity_manager_t* entities, uint32_t hndl, uint64_t component_id);
 GS_API_DECL void entities_update(entity_manager_t* entities);
+
+// Mechanism for getting entity manager instance
+#define entity_manager_instance() _g_entity_manager
 
 #define entities_register_component(ENTITIES, T)\
 	do {\
@@ -228,6 +232,16 @@ GS_API_DECL void entities_update(entity_manager_t* entities);
     _entities_get_component_internal((ENTITIES), (HNDL), obj_sid(T)) 
 
 #ifdef ENTITY_IMPL
+
+// Global instance of asset manager
+entity_manager_t* _g_entity_manager = NULL; 
+
+GS_API_DECL void entity_manager_init(entity_manager_t* entities)
+{
+    // Can only be ONE entity manager instance
+    gs_assert(!_g_entity_manager); 
+    _g_entity_manager = entities;
+}
 
 GS_API_DECL uint32_t entities_allocate(entity_manager_t* entities)
 {

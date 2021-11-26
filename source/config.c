@@ -84,5 +84,6 @@
 
 // Source files
 #include "reflection/generated.c"
+#include "component.c"
 
 

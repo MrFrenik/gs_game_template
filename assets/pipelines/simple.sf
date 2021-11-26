@@ -54,7 +54,6 @@ pipeline {
         fragment { 
 
             uniforms {
-                vec3 u_color;
                 sampler2D u_tex;
             }, 
             
@@ -64,7 +63,7 @@ pipeline {
 
             code {
                 void main() {
-                    frag_color = texture(u_tex, uv) * vec4(u_color, 1.0);
+                    frag_color = texture(u_tex, uv);
                 }
             }
         } 

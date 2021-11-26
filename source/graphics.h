@@ -79,57 +79,44 @@ GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb);
 GS_API_DECL void quad_batch_add(quad_batch_t* qb, const gs_vec2* position, const gs_vec2* dimensions, const gs_vec4* uvs, const gs_color_t* color, float depth);
 GS_API_PRIVATE void quad_batch_sort(quad_batch_t* qb);
 
-/*
- 
-    typedef struct renderable_base_t
-    { 
-        uint32_t hndl;                          // Slot array renderable id handle
-        gs_mat4 model_matrix;                   // Model matrix
-        gs_dyn_array(asset_handle_t) materials; // Per primitive materials
-    } renderable_base_t;
-
-    typedef struct renderable_static_mesh_t
-    {
-        base(renderable_base_t)
-
-        asset_handle_t mesh;                    // Asset handle for static mesh
-
-    } renderable_static_mesh_t;
-
-    typedef struct renderable_skeletal_mesh_t
-    {
-        base(renderable_base_t)
-
-        asset_handle_t mesh;                    // Asset handle for skeletal mesh
-
-    } renderable_static_mesh_t;
-
- */
-
-// Base renderable
-typedef struct renderable_t
+typedef struct renderable_base_t
 { 
-	// Fields
-	gs_gfxt_renderable_t data;
-	uint32_t mesh_hndl;
-	uint32_t material_hndl;
+    uint32_t hndl;                          // Slot array renderable id handle
+    gs_mat4 model_matrix;                   // Model matrix
+    gs_dyn_array(asset_handle_t) materials; // Per primitive materials
+} renderable_base_t;
 
-} renderable_t;
+GS_API_DECL renderable_base_set_material(renderable_base_t* rend, asset_handle_t mat, uint32_t idx); 
 
-GS_API_DECL void renderable_set_material_uniform(renderable_t* rend, const char* name, void* data);
+typedef struct renderable_static_mesh_t
+{
+    base(renderable_base_t)
+
+    asset_handle_t mesh;                    // Asset handle for static mesh
+
+} renderable_static_mesh_t;
+
+GS_API_DECL renderable_static_mesh_set_mesh(renderable_static_mesh_t* rend, asset_handle_t mesh); 
+
+typedef struct renderable_skeletal_mesh_t
+{
+    base(renderable_base_t)
+
+    asset_handle_t mesh;                    // Asset handle for skeletal mesh
+
+} renderable_skeletal_mesh_t; 
+
+GS_API_DECL void renderable_set_material_uniform(renderable_base_t* rend, const char* name, void* data);
 
 // Need a way to add renderables to a scene
 typedef struct graphics_scene_t 
-{
-	base(object_t)
-
-	// Fields
-	gs_slot_array(renderable_t) renderables;
+{ 
+	gs_slot_array(renderable_static_mesh_t) static_meshes;
 
 } graphics_scene_t;
 
-// Need a way to sort renderables by material/pipeline
-GS_API_DECL uint32_t graphics_scene_add_renderable(graphics_scene_t* scene, renderable_t renderable); 
+GS_API_DECL uint32_t graphics_scene_add_renderable_static_mesh(graphics_scene_t* scene, renderable_static_mesh_t renderable); 
+GS_API_DECL renderable_static_mesh_t* graphics_scene_get_renderable_static_mesh(graphics_scene_t* scene, uint32_t hndl);
 
 #ifdef GRAPHICS_IMPL
 
@@ -251,6 +238,59 @@ GS_API_PRIVATE void quad_batch_sort(quad_batch_t* qb)
     // Sort all of our vertex data by y
     qsort(qb->quads, gs_dyn_array_size(qb->quads), sizeof(quad_t), quad_compare); 
 }
+
+// ==================== [ Renderable Base ] =============== //
+
+GS_API_DECL renderable_base_set_material(renderable_base_t* rend, asset_handle_t mat, uint32_t idx)
+{
+    // Check for availability (this should be based on setting the mesh)
+    if (idx >= gs_dyn_array_size(rend->materials))
+    {
+        gs_dyn_array_reserve(rend->materials, idx + 1);
+    }
+
+    // Set material
+    rend->materials[idx] = mat;
+}
+
+// ==================== [ Renderable Static Mesh ] =============== //
+
+GS_API_DECL renderable_static_mesh_set_mesh(renderable_static_mesh_t* rend, asset_handle_t mesh)
+{
+    // Get mesh primitive count
+    mesh_t* mp = asset_handle_get(&mesh);
+    uint32_t cnt = gs_dyn_array_size(mp->mesh.primitives); 
+
+    // Reserve material space if necessary
+    renderable_base_t* base = cast(rend, renderable_base_t);
+    if (gs_dyn_array_size(base->materials) < cnt) {
+        gs_dyn_array_reserve(base->materials, cnt);
+    }
+
+    // Set mesh
+    rend->mesh = mesh;
+}
+
+// ==================== [ Graphics Scene ] =============== //
+
+GS_API_DECL uint32_t graphics_scene_add_renderable_static_mesh(graphics_scene_t* scene, renderable_static_mesh_t rend)
+{
+    const uint32_t hndl = gs_slot_array_insert(scene->static_meshes, rend);
+    gs_slot_array_getp(scene->static_meshes, hndl)->_base.hndl = hndl;
+    return hndl;
+} 
+
+GS_API_DECL renderable_static_mesh_t* graphics_scene_get_renderable_static_mesh(graphics_scene_t* scene, uint32_t hndl)
+{
+    return gs_slot_array_getp(scene->static_meshes, hndl);
+}
+
+
+
+
+
+
+
 
 #endif // GRAPHICS_IMPL
 #endif // GRAPHICS_H

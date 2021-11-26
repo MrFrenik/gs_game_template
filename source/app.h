@@ -394,8 +394,7 @@ typedef struct component_rotation_t
      */
     on_update
     ({ 
-        app_t* app = gs_engine_user_data(app_t); 
-        entity_manager_t* em = &app->core->entities; 
+        entity_manager_t* em = entity_manager_instance(); 
 
         // Update rotation
         const float _t = gs_platform_elapsed_time();
@@ -434,7 +433,7 @@ GS_API_DECL void app_shutdown();
 
 #ifdef APP_IMPL 
 
-material_t* mat = {0};
+graphics_scene_t scene = {0};
 
 GS_API_DECL void app_init()
 {
@@ -450,15 +449,14 @@ GS_API_DECL void app_init()
 
     // Load asset mesh
     gs_gfxt_mesh_import_options_t mo = pipeline_get_mesh_import_options(asset_handle_get(&pip));
-    asset_handle_t msh = assets_import(&app->core->assets, "meshes/slave.gltf", &mo, true);
+    asset_handle_t mesh = assets_import(&app->core->assets, "meshes/slave.gltf", &mo, true);
     gs_gfxt_mesh_import_options_free(&mo); 
 
-    // Construct new material
-    mat = obj_newc(material_t, pip);
-    gs_assert(mat); 
+    // Add new material to asset database
+    asset_handle_t mat = assets_add_to_database(&app->core->assets, obj_newc(material_t, pip), "materials", "simple_mat", true); 
 
-    // Add material to asset database
-    // assets_add_to_database(&app->core->assets, mat, "/materials", "simple_mat"); 
+    // Set texture uniform for material
+    material_set_uniform(asset_handle_get(&mat), "u_tex", &((texture_t*)asset_handle_get(&tex))->texture.hndl); 
 
     // Register new component with entity manager
     entities_register_component(&app->core->entities, component_rotation_t);
@@ -467,6 +465,17 @@ GS_API_DECL void app_init()
     app->ent = entities_allocate(&app->core->entities);
     entities_add_component(&app->core->entities, app->ent, component_rotation_t, obj_ctor(component_rotation_t, 3.145f, gs_v3(0.f, 1.f, 0.f))); 
     entities_add_component(&app->core->entities, app->ent, component_transform_t, obj_ctor(component_transform_t, gs_vqs_default())); 
+    entities_add_component(&app->core->entities, app->ent, component_static_mesh_t, obj_ctor(component_static_mesh_t, &scene));
+
+    // Get renderable component
+    component_static_mesh_t* sm = entities_get_component(&app->core->entities, app->ent, component_static_mesh_t);
+    renderable_static_mesh_t* rend = graphics_scene_get_renderable_static_mesh(&scene, sm->renderable_id);
+
+    // Assign mesh to renderable
+    renderable_static_mesh_set_mesh(rend, mesh);
+
+    // Assign material to renderable at idx 0
+    renderable_base_set_material(rend, mat, 0); 
 } 
 
 GS_API_DECL void app_update()
@@ -489,38 +498,55 @@ GS_API_DECL void app_update()
     // Update entity manager
     entities_update(em); 
 
-    // Get rotation for entity to render
-    component_transform_t* tc = entities_get_component(em, app->ent, component_transform_t);
-
-    // Get texture from assets
-    texture_t* tex = assets_getp(&app->core->assets, texture_t, "textures.slave_albedo"); 
-    mesh_t* mesh = assets_getp(&app->core->assets, mesh_t, "meshes.slave");
-
+    // Get view projection
     gs_camera_t cam = gs_camera_perspective();
     cam.transform.position.z = 20.f; 
     gs_mat4 vp = gs_camera_get_view_projection(&cam, ws.x, ws.y);
-    gs_vqs xform = gs_vqs_default();
-    xform.scale = gs_v3s(1.f);
-    xform.rotation = gs_quat_angle_axis(gs_platform_elapsed_time() * 0.001f, GS_YAXIS);
-    gs_mat4 mvp = gs_mat4_mul(vp, gs_vqs_to_mat4(&xform)); 
-
-    material_set_uniform(mat, "u_mvp",  &mvp);
-    material_set_uniform(mat, "u_color",  &(gs_vec3){sin(gs_platform_elapsed_time() * 0.001f) * 0.5f + 0.5f, 0.f, 0.f});
-    material_set_uniform(mat, "u_tex",  &tex->texture.hndl); 
 
     // Render pass action for clearing the screen
     gs_graphics_clear_desc_t clear = (gs_graphics_clear_desc_t){
         .actions = &(gs_graphics_clear_action_t){.color = {0.1f, 0.1f, 0.1f, 1.f}}
     }; 
 
+    // Main render pass
     gs_graphics_begin_render_pass(cb, GS_GRAPHICS_RENDER_PASS_DEFAULT);           // Begin render pass (default render pass draws to back buffer)
+
         gs_graphics_clear(cb, &clear);                                            // Clear screen
         gs_graphics_set_viewport(cb, 0, 0, (uint32_t)ws.x, (uint32_t)ws.y);       // Set render viewport
-        material_bind(cb, mat);                                                   // Bind material pipeline
-        material_bind_uniforms(cb, mat);                                          // Bind material uniforms
-        mesh_draw(cb, mesh);                                                      // Draw mesh
+
+        // Iterate through static meshes in scene
+        for (
+                gs_slot_array_iter it = gs_slot_array_iter_new(scene.static_meshes); 
+                gs_slot_array_iter_valid(scene.static_meshes, it);
+                gs_slot_array_iter_advance(scene.static_meshes, it)
+        )
+        {
+            // Get renderable pointer from scene
+            const renderable_static_mesh_t* rend = gs_slot_array_iter_getp(scene.static_meshes, it); 
+            material_t* mat = asset_handle_get(&cast(rend, renderable_base_t)->materials[0]);
+            mesh_t* mesh = asset_handle_get(&rend->mesh);
+
+            // Get model matrix for renderable
+            const gs_mat4 model = cast(rend, renderable_base_t)->model_matrix;
+
+            // Final MVP matrix
+            const gs_mat4 mvp = gs_mat4_mul(vp, model);
+
+            // Set material uniforms
+            material_set_uniform(mat, "u_mvp",  &mvp);
+
+            // Bind material pipeline and uniforms
+            material_bind(cb, mat);                                                   // Bind material pipeline
+            material_bind_uniforms(cb, mat);                                          // Bind material uniforms
+
+            // Draw mesh
+            mesh_draw(cb, mesh);                                                      // Draw mesh 
+        }
+
+    // End main pass
     gs_graphics_end_render_pass(cb);      
 
+    // Submit command buffer for rendering
     gs_graphics_submit_command_buffer(cb); 
 }
 
@@ -528,7 +554,7 @@ GS_API_DECL void app_shutdown()
 {
     app_t* app = gs_engine_user_data(app_t); 
     core_delete(app->core); 
-}
+} 
         
 GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv)
 {

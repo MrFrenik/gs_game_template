@@ -105,6 +105,36 @@ typedef struct component_renderable_t
 
 } component_renderable_t; 
 
+introspect()
+typedef struct component_static_mesh_t
+{
+    base(component_base_t)
+
+    ctor(
+        params(graphics_scene_t* scene),
+        func({
+            renderable_static_mesh_t rend = {0};
+            this->renderable_id = graphics_scene_add_renderable_static_mesh(scene, rend);
+            this->scene = scene;
+        })
+    )
+
+    // Update renderable transform
+    on_update
+    ({ 
+        component_static_mesh_update(this);
+    })
+
+    field()
+    uint32_t renderable_id;
+
+    field()
+    graphics_scene_t* scene;
+
+} component_static_mesh_t;
+
+GS_API_DECL void component_static_mesh_update(component_static_mesh_t* comp);
+
 #ifdef COMPONENT_IMPL 
 
 GS_API_DECL uint32_t component_get_entity(component_base_t* base)

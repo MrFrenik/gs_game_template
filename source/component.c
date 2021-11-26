@@ -1,7 +1,7 @@
 /*==============================================================================================================
     * Copyright: 2020 John Jackson 
     * Gunslinger Game Template
-    * File: core.h
+    * File: component.c
     * Github: https://github.com/MrFrenik/gs_game_template
 
     All Rights Reserved
@@ -36,76 +36,19 @@
 
 =================================================================================================================*/ 
 
-#ifndef CORE_H
-#define CORE_H
+// ============ [ Component Static Mesh ] =============== //
 
-// Core systems and data for app
-typedef struct core_t
-{
-    gs_command_buffer_t cb; 
-    gs_immediate_draw_t gsi; 
-	entity_manager_t 	entities;
-	asset_manager_t 	assets;
-	meta_t 				meta;
-    gs_mu_ctx           gmu;
-} core_t;
+GS_API_DECL void component_static_mesh_update(component_static_mesh_t* comp)
+{ 
+    entity_manager_t* em = entity_manager_instance();
 
-GS_API_DECL core_t* core_new();
-GS_API_DECL void core_delete(core_t* core);
+    // Get transform component, if found 
+    component_transform_t* tc = entities_get_component(em, cast(comp, component_base_t)->entity, component_transform_t);
 
-#ifdef CORE_IMPL
-
-GS_API_DECL core_t* core_new()
-{
-	core_t* core = gs_malloc_init(core_t);
-
-    //=== [ Structures ] ===// 
-	
-    core->cb = gs_command_buffer_new();
-    core->gsi = gs_immediate_draw_new();
-
-    //=== [ GSMUI ] ===// 
-
-    core->gmu = gs_mu_new(); 
-
-	//=== [ Meta ] ====//
-	
-	core->meta = meta_new();
-	meta_set_instance(&core->meta);
-
-	// Register gunslinger meta information
-	meta_register_gs(&core->meta); 
-
-	// Register all generated meta information
-	meta_register_generated(&core->meta);
-
-	//=== [ Assets ] ====//
-	
-	// Initialize asset manager with root assets path
-    const char* assets_path = gs_platform_dir_exists("./assets/") ? "./assets" : "../assets";
-	assets_init(&core->assets, assets_path);
-
-	//==== [ Entity ] ===//
-
-    // Init entity manager
-    entity_manager_init(&core->entities);
-	
-	// Register core components	
-	entities_register_component(&core->entities, component_transform_t);
-	entities_register_component(&core->entities, component_physics_t);
-	entities_register_component(&core->entities, component_static_mesh_t);
-
-	return core;
+    // Update rotation of transform 
+    if (tc)
+    { 
+        renderable_static_mesh_t* sm = graphics_scene_get_renderable_static_mesh(comp->scene, comp->renderable_id);
+        cast(sm, renderable_base_t)->model_matrix = gs_vqs_to_mat4(&tc->transform);
+    }
 }
-
-GS_API_DECL void core_delete(core_t* core)
-{
-    gs_immediate_draw_free(&core->gsi);
-    gs_command_buffer_free(&core->cb);
-    
-}
-
-
-#endif // CORE_IMPL
-#endif // CORE_H
-

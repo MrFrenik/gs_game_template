@@ -275,11 +275,12 @@ typedef struct asset_manager_t
 GS_API_DECL void assets_init(asset_manager_t* am, const char* root_path);
 GS_API_DECL const char* assets_get_internal_file_extension(const char* ext);
 GS_API_DECL asset_handle_t assets_import(asset_manager_t* am, const char* path, void* user_data, bool serialize_to_disk);
+GS_API_DECL asset_handle_t assets_add_to_database(asset_manager_t* am, asset_t* asset, const char* dir, const char* name, bool serialize_to_disk);
 GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* path, const asset_t* in);
 GS_API_DECL gs_result assets_deserialize_asset(asset_manager_t* am, const char*path, asset_t* out);
 GS_API_DECL void* assets_get_data_internal(uint64_t cls_id);
 GS_API_DECL  const asset_t* _assets_get_w_name_internal(const asset_manager_t* am, uint64_t cid, const char* name);
-GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_t cid, size_t cls_sz, asset_importer_desc_t* desc);
+GS_API_DECL void _assets_register_importer_internal(asset_manager_t* am, uint64_t cid, size_t cls_sz, asset_importer_desc_t* desc); 
 
 #define assets_register_importer(ASSETS, T, DESC)\
 	_assets_register_importer_internal(ASSETS, obj_sid(T), sizeof(T), DESC);
@@ -451,6 +452,93 @@ GS_API_DECL asset_handle_t assets_import(asset_manager_t* am, const char* path, 
     return asset_hndl;
 }
 
+GS_API_DECL asset_handle_t assets_add_to_database(asset_manager_t* am, asset_t* asset, const char* dir, const char* name, bool serialize_to_disk)
+{
+	// Create record for asset, set path to asset using qualified name
+	asset_record_t record = gs_default_val();
+
+    // Asset handle to create and return
+    asset_handle_t asset_hndl = asset_handle_invalid();
+
+    if (!asset)
+    { 
+        gs_println("error::assets_add_to_database::asset id %zu does not exist.", obj_id(asset));
+        return asset_hndl;
+    } 
+
+    if (!gs_hash_table_key_exists(am->cid2importer, obj_id(asset)))
+    {
+        gs_println("error::assets_add_to_database::asset id %zu does not exist.", obj_id(asset));
+        return asset_hndl;
+    }
+
+	// Get asset storage
+	uint32_t importer_hndl = gs_hash_table_get(am->cid2importer, obj_id(asset));
+	asset_importer_t* importer = gs_slot_array_get(am->importers, importer_hndl); 
+
+	// Get class id from storage
+	uint64_t id = importer->asset_cls_id;
+
+    // Get relative path to asset
+    gs_snprintfc(REL_PATH, ASSET_STR_MAX, "%s/%s.%s", dir, name, importer->file_extension);
+
+    // Get absolute directory
+    gs_snprintfc(ABS_DIR, ASSET_STR_MAX, "%s/%s/", am->root_path, dir);
+
+	// Get absolute path to asset
+	gs_snprintfc(ABS_PATH, ASSET_STR_MAX, "%s/%s", am->root_path, REL_PATH); 
+
+    // Copy final path
+	gs_snprintf(record.path, ASSET_STR_MAX, "%s", ABS_PATH);
+
+	// Get qualified name of asset
+	gs_transient_buffer(QUAL_NAME, ASSET_STR_MAX);
+	asset_qualified_name(REL_PATH, QUAL_NAME, ASSET_STR_MAX);
+	memcpy(record.name, QUAL_NAME, ASSET_STR_MAX); 
+
+    // Generate uuid for asset
+	record.uuid = gs_platform_uuid_generate(); 
+
+    // Add to database
+    gs_println("assets_add_to_database::asset %s", name);
+
+    // Insert into data array
+    uint32_t hndl = gs_slot_array_insert(importer->assets, asset);
+
+    // Set up tables
+    gs_transient_buffer(UUID_BUF, 34);
+    gs_platform_uuid_to_string(UUID_BUF, &record.uuid);
+    gs_hash_table_insert(importer->uuid2id, gs_hash_str64(UUID_BUF), hndl);
+    gs_hash_table_insert(importer->name2id, gs_hash_str64(record.name), hndl); 
+
+    // Assign asset handle to record
+    record.hndl = hndl;
+
+    // Store record in storage
+    uint32_t rhndl = gs_slot_array_insert(importer->records, record);
+
+    // Set asset record hndl
+    asset->record_hndl = rhndl; 
+
+    // Serialize asset to disk
+    if (serialize_to_disk)
+    {
+        DIR* _dir = opendir(ABS_DIR);
+        if (!_dir) {
+            mkdir(ABS_DIR, S_IWRITE | S_IREAD);
+        }
+
+        assets_serialize_asset(am, record.path, asset);
+    }
+
+    // Set asset handle data
+    asset_hndl.hndl = hndl; 
+    asset_hndl.importer = importer_hndl;
+
+    // Return asset handle
+    return asset_hndl;
+}
+
 GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* path, const asset_t* in)
 { 
     // Get class id
@@ -478,7 +566,7 @@ GS_API_DECL gs_result assets_serialize_asset(asset_manager_t* am, const char* pa
 	if (res == GS_RESULT_INCOMPLETE)
 	{
         res = object_serialize_default(&bb, in);
-	}
+	} 
 
 	// Write to file
 	gs_byte_buffer_write_to_file(&bb, path);
