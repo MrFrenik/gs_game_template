@@ -36,45 +36,45 @@
 
 =================================================================================================================*/ 
 
-#ifndef OBJECT_H
-#define OBJECT_H
+#ifndef GS_OBJECT_H
+#define GS_OBJECT_H
 
 // Forward decl
-struct meta_t;
+struct gs_meta_t;
 
-typedef struct object_t
+typedef struct gs_object_t	
 {
 	uint64_t cls_id;
-} object_t; 
+} gs_object_t	; 
 
 // Function pointer typedefs
-typedef void (* obj_ctor_func)(object_t* obj, void* args); 
-typedef void (* obj_dtor_func)(object_t* obj); 
-typedef gs_result (* obj_serialize_func)(gs_byte_buffer_t*, const object_t*); 
-typedef gs_result (* obj_deserialize_func)(gs_byte_buffer_t*, object_t*); 
-typedef void (*obj_dtor_func)(object_t* obj);
-typedef void (*obj_on_create_func)(object_t* obj);
-typedef void (*obj_on_start_func)(object_t* obj);
-typedef void (*obj_on_stop_func)(object_t* obj);
-typedef void (*obj_on_update_func)(object_t* obj);
-typedef void (*obj_on_destroy_func)(object_t* obj);
+typedef void (* gs_obj_ctor_func)(gs_object_t* obj, void* args); 
+typedef void (* gs_obj_dtor_func)(gs_object_t* obj); 
+typedef gs_result (* gs_obj_serialize_func)(gs_byte_buffer_t*, const gs_object_t*); 
+typedef gs_result (* gs_obj_deserialize_func)(gs_byte_buffer_t*, gs_object_t*); 
+typedef void (*gs_obj_dtor_func)(gs_object_t* obj);
+typedef void (*gs_obj_on_create_func)(gs_object_t* obj);
+typedef void (*gs_obj_on_start_func)(gs_object_t* obj);
+typedef void (*gs_obj_on_stop_func)(gs_object_t* obj);
+typedef void (*gs_obj_on_update_func)(gs_object_t* obj);
+typedef void (*gs_obj_on_destroy_func)(gs_object_t* obj);
 
 // Default Functions
-GS_API_DECL gs_result object_serialize_default(gs_byte_buffer_t* buffer, const object_t* in);
-GS_API_DECL gs_result object_deserialize_default(gs_byte_buffer_t* buffer, object_t* out);
-GS_API_DECL object_t* object_malloc_default(size_t sz);
-GS_API_DECL void object_ctor_default(object_t* obj);
-GS_API_DECL void object_dtor_default(object_t* obj);
+GS_API_DECL gs_result gs_object_serialize_default(gs_byte_buffer_t* buffer, const gs_object_t* in);
+GS_API_DECL gs_result gs_object_deserialize_default(gs_byte_buffer_t* buffer, gs_object_t* out);
+GS_API_DECL gs_object_t* gs_object_malloc_default(size_t sz);
+GS_API_DECL void gs_object_ctor_default(gs_object_t* obj);
+GS_API_DECL void gs_object_dtor_default(gs_object_t* obj);
 
 // Utility
-GS_API_DECL void obj_dump(struct meta_t* meta, void* obj, gs_meta_class_t* cls);
+GS_API_DECL void gs_obj_dump(struct gs_meta_t* meta, void* obj, gs_meta_class_t* cls);
 
 // Internal functions
-GS_API_PRIVATE object_t* _obj_new_internal(uint64_t id);
-GS_API_PRIVATE void _obj_ctor_internal(uint64_t id, object_t* obj, void* args);
-GS_API_PRIVATE void _obj_dtor_internal(uint64_t id, object_t* obj);
-GS_API_PRIVATE gs_result _obj_serialize_internal(uint64_t id, gs_byte_buffer_t* buffer, object_t* in);
-GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t* buffer, object_t* out); 
+GS_API_PRIVATE gs_object_t* _gs_obj_new_internal(uint64_t id);
+GS_API_PRIVATE void _gs_obj_ctor_internal(uint64_t id, gs_object_t* obj, void* args);
+GS_API_PRIVATE void _gs_obj_dtor_internal(uint64_t id, gs_object_t* obj);
+GS_API_PRIVATE gs_result _gs_obj_serialize_internal(uint64_t id, gs_byte_buffer_t* buffer, gs_object_t* in);
+GS_API_PRIVATE gs_result _gs_obj_deserialize_internal(uint64_t id, gs_byte_buffer_t* buffer, gs_object_t* out); 
 
 // Useful defines
 #define base(T) T _base;
@@ -96,56 +96,56 @@ GS_API_PRIVATE gs_result _obj_deserialize_internal(uint64_t id, gs_byte_buffer_t
 #define ignore(...) gs_empty_instruction() 
 
 // Object functions
-#define obj_id(OBJ)                  (cast((OBJ), object_t)->cls_id)  // Get object class id from instance
-#define obj_sid(T)                   gs_hash_str64(gs_to_str(T))    // Get object class id from static type
-#define obj_vtable_w_id(ID)          (&(gs_hash_table_getp(meta_get_instance()->registry.classes, ID)->vtable)) // Get vtable for class
-#define obj_func_w_id(ID, NAME)      gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), NAME) // Get function in vtable based on name
-#define obj_newid(ID)                _obj_new_internal(ID) // Heap allocate object based on cls id 
+#define gs_obj_id(OBJ)                (cast((OBJ), gs_object_t)->cls_id)  // Get object class id from instance
+#define gs_obj_sid(T)                 gs_hash_str64(gs_to_str(T))    // Get object class id from static type
+#define gs_obj_vtable_w_id(ID)        (&(gs_hash_table_getp(gs_meta_get_instance()->registry.classes, ID)->vtable)) // Get vtable for class
+#define gs_obj_func_w_id(ID, NAME)    gs_meta_func_get_w_id(&gs_meta_get_instance()->registry, (ID), NAME) // Get function in vtable based on name
+#define gs_obj_newid(ID)                _gs_obj_new_internal(ID) // Heap allocate object based on cls id 
 
-#define obj_ctor(T, ...)                T##_ctor(__VA_ARGS__) 
-#define obj_newc(T, ...)                (T*)(T##_new(__VA_ARGS__))
-#define obj_dtor(T, OBJ)                T##_dtor(OBJ) 
-#define obj_serialize(T, BUFFER, OBJ)   T##_serialize(BUFFER, OBJ)
-#define obj_deserialize(T, BUFFER, OBJ) T##_deserialize(BUFFER, OBJ)
+#define gs_obj_ctor(T, ...)                 T##_ctor(__VA_ARGS__) 
+#define gs_obj_newc(T, ...)                 (T*)(T##_new(__VA_ARGS__))
+#define gs_obj_dtor(T, OBJ)                 T##_dtor(OBJ) 
+#define gs_obj_serialize(T, BUFFER, OBJ)    T##_serialize(BUFFER, OBJ)
+#define gs_obj_deserialize(T, BUFFER, OBJ)  T##_deserialize(BUFFER, OBJ)
 
-#define obj_ctor_w_id(ID, OBJ, ...)     gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), obj_ctor)(__VA_ARGS__)
-#define obj_dtor_w_id(ID)               gs_meta_func_get_w_id(&meta_get_instance()->registry, (ID), obj_dtor) 
+#define gs_obj_ctor_w_id(ID, OBJ, ...)     gs_meta_func_get_w_id(&gs_meta_get_instance()->registry, (ID), gs_obj_ctor)(__VA_ARGS__)
+#define gs_obj_dtor_w_id(ID)               gs_meta_func_get_w_id(&gs_meta_get_instance()->registry, (ID), gs_obj_dtor) 
 
-typedef struct meta_t
+typedef struct gs_meta_t
 {
 	gs_meta_registry_t registry;
-} meta_t;
+} gs_meta_t;
 
 // Get global instance to meta information
-GS_API_DECL meta_t meta_new();
-GS_API_DECL meta_t* meta_get_instance();
-GS_API_DECL void meta_set_instance(meta_t* meta);
-GS_API_DECL void meta_register_gs(meta_t* meta); 
+GS_API_DECL gs_meta_t gs_meta_new();
+GS_API_DECL gs_meta_t* gs_meta_get_instance();
+GS_API_DECL void gs_meta_set_instance(gs_meta_t* meta);
+GS_API_DECL void gs_meta_register_gs(gs_meta_t* meta); 
 
-#ifdef OBJECT_IMPL
+#ifdef GS_OBJECT_IMPL
 
 //==== [ Meta ] ====
 
-meta_t* g_meta = NULL;
+gs_meta_t* g_meta = NULL;
 
-GS_API_DECL meta_t meta_new()
+GS_API_DECL gs_meta_t gs_meta_new()
 {
-	meta_t meta = gs_default_val();
+	gs_meta_t meta = gs_default_val();
 	return meta;
 }
 
-GS_API_DECL void meta_set_instance(meta_t* meta)
+GS_API_DECL void gs_meta_set_instance(gs_meta_t* meta)
 {
 	g_meta = meta;
 }
 
 // Get global instance to meta information
-GS_API_DECL meta_t* meta_get_instance()
+GS_API_DECL gs_meta_t* gs_meta_get_instance()
 {
 	return g_meta;
 } 
 
-GS_API_DECL void meta_register_gs(meta_t* meta)
+GS_API_DECL void gs_meta_register_gs(gs_meta_t* meta)
 {
 	//==== [ GS Meta ] ===== (these need to be manually registered for now)
 
@@ -180,17 +180,17 @@ GS_API_DECL void meta_register_gs(meta_t* meta)
 //===== [ Object functions ] ======
 
 // Internal functions
-GS_API_PRIVATE object_t* _obj_new_internal(uint64_t id)
+GS_API_PRIVATE gs_object_t	* _gs_obj_new_internal(uint64_t id)
 { 
-    const gs_meta_class_t* cls = gs_meta_class_get_w_id(&meta_get_instance()->registry, id);
-    object_t* obj = gs_malloc(cls->size);
+    const gs_meta_class_t* cls = gs_meta_class_get_w_id(&gs_meta_get_instance()->registry, id);
+    gs_object_t	* obj = gs_malloc(cls->size);
     obj->cls_id = id;
     return obj;
 } 
 
 //===== [ Utils ] ======
 
-GS_API_DECL void obj_dump(meta_t* meta, void* obj, gs_meta_class_t* cls)
+GS_API_DECL void gs_obj_dump(gs_meta_t* meta, void* obj, gs_meta_class_t* cls)
 {
 	gs_println("cls: %s, ct: %zu", cls->name, cls->property_count);
 
@@ -226,7 +226,7 @@ GS_API_DECL void obj_dump(meta_t* meta, void* obj, gs_meta_class_t* cls)
 				const gs_meta_class_t* clz = gs_meta_class_get_w_name(&meta->registry, prop->type_name); 
 				if (_obj && clz)
 				{
-					obj_dump(meta, _obj, clz);
+					gs_obj_dump(meta, _obj, clz);
 				}
 			} break;
 		}
@@ -235,19 +235,19 @@ GS_API_DECL void obj_dump(meta_t* meta, void* obj, gs_meta_class_t* cls)
 
 //==== [ Object defaults ] ====
 
-GS_API_DECL gs_result object_serialize_default(gs_byte_buffer_t* buffer, const object_t* in)
+GS_API_DECL gs_result gs_object_serialize_default(gs_byte_buffer_t* buffer, const gs_object_t	* in)
 {
 	return GS_RESULT_SUCCESS;
 }
 
-GS_API_DECL gs_result object_deserialize_default(gs_byte_buffer_t* buffer, object_t* out)
+GS_API_DECL gs_result gs_object_deserialize_default(gs_byte_buffer_t* buffer, gs_object_t	* out)
 {
 	return GS_RESULT_SUCCESS;
 } 
 
 
-#endif // OBJECT_IMPL
-#endif // OBJECT_H
+#endif // GS_OBJECT_IMPL
+#endif // GS_OBJECT_H
 
 
 

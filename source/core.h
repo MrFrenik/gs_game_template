@@ -36,28 +36,28 @@
 
 =================================================================================================================*/ 
 
-#ifndef CORE_H
-#define CORE_H
+#ifndef GS_CORE_H
+#define GS_CORE_H
 
 // Core systems and data for app
-typedef struct core_t
+typedef struct gs_core_t
 {
     gs_command_buffer_t cb; 
     gs_immediate_draw_t gsi; 
-	entity_manager_t 	entities;
-	asset_manager_t 	assets;
-	meta_t 				meta;
+	gs_entity_manager_t	entities;
+	gs_asset_manager_t 	assets;
+	gs_meta_t 			meta;
     gs_mu_ctx           gmu;
-} core_t;
+} gs_core_t;
 
-GS_API_DECL core_t* core_new();
-GS_API_DECL void core_delete(core_t* core);
+GS_API_DECL gs_core_t* gs_core_new();
+GS_API_DECL void gs_core_delete(gs_core_t* core);
 
-#ifdef CORE_IMPL
+#ifdef GS_CORE_IMPL
 
-GS_API_DECL core_t* core_new()
+GS_API_DECL gs_core_t* gs_core_new()
 {
-	core_t* core = gs_malloc_init(core_t);
+	gs_core_t* core = gs_malloc_init(gs_core_t);
 
     //=== [ Structures ] ===// 
 	
@@ -70,35 +70,35 @@ GS_API_DECL core_t* core_new()
 
 	//=== [ Meta ] ====//
 	
-	core->meta = meta_new();
-	meta_set_instance(&core->meta);
+	core->meta = gs_meta_new();
+	gs_meta_set_instance(&core->meta);
 
 	// Register gunslinger meta information
-	meta_register_gs(&core->meta); 
+	gs_meta_register_gs(&core->meta); 
 
 	// Register all generated meta information
-	meta_register_generated(&core->meta);
+	gs_meta_register_generated(&core->meta);
 
 	//=== [ Assets ] ====//
 	
 	// Initialize asset manager with root assets path
     const char* assets_path = gs_platform_dir_exists("./assets/") ? "./assets" : "../assets";
-	assets_init(&core->assets, assets_path);
+	gs_assets_init(&core->assets, assets_path);
 
 	//==== [ Entity ] ===//
 
     // Init entity manager
-    entity_manager_init(&core->entities);
+    gs_entity_manager_init(&core->entities);
 	
 	// Register core components	
-	entities_register_component(&core->entities, component_transform_t);
-	entities_register_component(&core->entities, component_physics_t);
-	entities_register_component(&core->entities, component_static_mesh_t);
+	gs_entities_register_component(&core->entities, gs_component_transform_t);
+	gs_entities_register_component(&core->entities, gs_component_physics_t);
+	gs_entities_register_component(&core->entities, gs_component_static_mesh_t);
 
 	return core;
 }
 
-GS_API_DECL void core_delete(core_t* core)
+GS_API_DECL void gs_core_delete(gs_core_t* core)
 {
     gs_immediate_draw_free(&core->gsi);
     gs_command_buffer_free(&core->cb);
@@ -106,6 +106,6 @@ GS_API_DECL void core_delete(core_t* core)
 }
 
 
-#endif // CORE_IMPL
-#endif // CORE_H
+#endif // GS_CORE_IMPL
+#endif // GS_CORE_H
 

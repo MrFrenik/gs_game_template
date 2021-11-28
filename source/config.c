@@ -58,28 +58,28 @@
 #define GS_MICROUI_IMPL
 #include "external/microui/gs_microui.h"
 
-#define OBJECT_IMPL
+#define GS_OBJECT_IMPL
 #include "object.h"
 
-#define ASSET_IMPL
+#define GS_ASSET_IMPL
 #include "asset.h"
 
-#define GRAPHICS_IMPL
+#define GS_GRAPHICS_IMPL
 #include "graphics.h" 
 
-#define COMPONENT_IMPL
+#define GS_COMPONENT_IMPL
 #include "component.h"
 
-#define ENTITY_IMPL
+#define GS_ENTITY_IMPL
 #include "entity.h"
 
-#define GENERATED_IMPL
+#define GS_GENERATED_IMPL
 #include "reflection/generated.h"
 
-#define CORE_IMPL
+#define GS_CORE_IMPL
 #include "core.h"
 
-#define APP_IMPL
+#define GS_APP_IMPL
 #include "app.h"
 
 // Source files

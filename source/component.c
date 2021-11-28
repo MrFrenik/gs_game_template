@@ -38,17 +38,17 @@
 
 // ============ [ Component Static Mesh ] =============== //
 
-GS_API_DECL void component_static_mesh_update(component_static_mesh_t* comp)
+GS_API_DECL void gs_component_static_mesh_update(gs_component_static_mesh_t* comp)
 { 
-    entity_manager_t* em = entity_manager_instance();
+    gs_entity_manager_t* em = gs_entity_manager_instance();
 
     // Get transform component, if found 
-    component_transform_t* tc = entities_get_component(em, cast(comp, component_base_t)->entity, component_transform_t);
+    gs_component_transform_t* tc = gs_entities_get_component(em, cast(comp, gs_component_base_t)->entity, gs_component_transform_t);
 
     // Update rotation of transform 
     if (tc)
     { 
-        renderable_static_mesh_t* sm = graphics_scene_get_renderable_static_mesh(comp->scene, comp->renderable_id);
-        cast(sm, renderable_base_t)->model_matrix = gs_vqs_to_mat4(&tc->transform);
+        gs_renderable_static_mesh_t* sm = gs_graphics_scene_get_renderable_static_mesh(comp->scene, comp->renderable_id);
+        cast(sm, gs_renderable_base_t)->model_matrix = gs_vqs_to_mat4(&tc->transform);
     }
 }

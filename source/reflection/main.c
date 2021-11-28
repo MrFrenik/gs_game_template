@@ -723,8 +723,8 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 	}
 
 	// Write out header information
-	gs_fprintln(fp, "#ifndef GENERATED_H");	
-	gs_fprintln(fp, "#define GENERATED_H\n");	
+	gs_fprintln(fp, "#ifndef GS_GENERATED_H");	
+	gs_fprintln(fp, "#define GS_GENERATED_H\n");	
 
 	// Write out warning information
 	gs_fprintln(fp, "/*");	
@@ -737,7 +737,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 	gs_fprintln(fp, "// ==== Main API === //");	
 	
 	// Functions API
-	gs_fprintln(fp, "GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta);");	
+	gs_fprintln(fp, "GS_API_DECL void gs_meta_register_generated(gs_meta_registry_t* meta);");	
 
     // Formatting
 	gs_fprintln(fp, "");	
@@ -813,31 +813,31 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             gs_fprintln(fp, "GS_API_DECL struct %s obj_ctor_%zu(%s);", name, id, params);	
 
             // New
-            gs_fprintln(fp, "GS_API_DECL object_t* obj_new_%zu(%s);", id, params);	
+            gs_fprintln(fp, "GS_API_DECL gs_object_t* obj_new_%zu(%s);", id, params);	
 
             // Dtor
-            gs_fprintln(fp, "GS_API_DECL void obj_dtor_%zu(struct object_t* obj);", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_dtor_%zu(struct gs_object_t* obj);", id);	
 
             // Serialize
-            gs_fprintln(fp, "GS_API_DECL gs_result obj_serialize_%zu(gs_byte_buffer_t* buffer, const object_t* in);", id);	
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_serialize_%zu(gs_byte_buffer_t* buffer, const gs_object_t* in);", id);	
 
             // Deserialize
-            gs_fprintln(fp, "GS_API_DECL gs_result obj_deserialize_%zu(gs_byte_buffer_t* buffer, object_t* out);", id);	
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_deserialize_%zu(gs_byte_buffer_t* buffer, gs_object_t* out);", id);	
 
             // On Create
-            gs_fprintln(fp, "GS_API_DECL void obj_on_create_%zu(object_t* in);", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_create_%zu(gs_object_t* in);", id);	
 
             // On Start
-            gs_fprintln(fp, "GS_API_DECL void obj_on_start_%zu(object_t* in);", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_start_%zu(gs_object_t* in);", id);	
 
             // On Stop
-            gs_fprintln(fp, "GS_API_DECL void obj_on_stop_%zu(object_t* in);", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_stop_%zu(gs_object_t* in);", id);	
 
             // On Update
-            gs_fprintln(fp, "GS_API_DECL void obj_on_update_%zu(object_t* in);", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_update_%zu(gs_object_t* in);", id);	
 
             // On Destroy
-            gs_fprintln(fp, "GS_API_DECL void obj_on_destroy_%zu(object_t* in);", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_destroy_%zu(gs_object_t* in);", id);	
         } 
 
 
@@ -845,7 +845,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         gs_fprintln(fp, "");	
     }
 
-	gs_fprintln(fp, "#endif // GENERATED_H");	
+	gs_fprintln(fp, "#endif // GS_GENERATED_H");	
 
 	// Close the file
 	fclose(fp);
@@ -872,7 +872,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
 	// gs_fprintln(fp, "#ifdef GENERATED_IMPL\n");	
 
 	// Register meta information function implementation
-	gs_fprintln(fp, "GS_API_DECL void meta_register_generated(gs_meta_registry_t* meta)");	
+	gs_fprintln(fp, "GS_API_DECL void gs_meta_register_generated(gs_meta_registry_t* meta)");	
 	gs_fprintln(fp, "{");	
 	{
 		// Register enums
@@ -944,16 +944,16 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             }
 
             // Standard VTable functions
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_ctor)), (void*)obj_ctor_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_new)), (void*)obj_new_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_dtor)), (void*)obj_dtor_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_serialize)), (void*)obj_serialize_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_deserialize)), (void*)obj_deserialize_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_create)), (void*)obj_on_create_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_start)), (void*)obj_on_start_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_stop)), (void*)obj_on_stop_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_update)), (void*)obj_on_update_%zu);", name, id);	
-            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(obj_on_destroy)), (void*)obj_on_destroy_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_ctor)), (void*)obj_ctor_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_new)), (void*)obj_new_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_dtor)), (void*)obj_dtor_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_serialize)), (void*)obj_serialize_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_deserialize)), (void*)obj_deserialize_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_on_create)), (void*)obj_on_create_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_on_start)), (void*)obj_on_start_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_on_stop)), (void*)obj_on_stop_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_on_update)), (void*)obj_on_update_%zu);", name, id);	
+            gs_fprintln(fp, "\tgs_hash_table_insert(%s_vt.funcs, gs_hash_str64(gs_to_str(gs_obj_on_destroy)), (void*)obj_on_destroy_%zu);", name, id);	
             
             // Formatting
 			gs_fprintln(fp, "");	
@@ -1051,7 +1051,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             gs_fprintln(fp, "\t%s* this = &_obj;", name);	
 
             // Set object id here
-            gs_fprintln(fp, "\tcast(this, object_t)->cls_id = obj_sid(%s);", name);	
+            gs_fprintln(fp, "\tcast(this, gs_object_t)->cls_id = gs_obj_sid(%s);", name);	
             
             // Print the function box
             if (*func)
@@ -1071,14 +1071,14 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             const char* params =  c->ctor.params;
             const char* func = c->ctor.func;
 
-            gs_fprintln(fp, "GS_API_DECL object_t* obj_new_%zu(%s)", id, params);	
+            gs_fprintln(fp, "GS_API_DECL gs_object_t* obj_new_%zu(%s)", id, params);	
             gs_fprintln(fp, "{"); 
 
             gs_fprintln(fp, "\t%s* _obj = gs_malloc_init(%s);", name, name);	
             gs_fprintln(fp, "\t%s* this = _obj;", name);	
 
             // Set object id here
-            gs_fprintln(fp, "\tcast(this, object_t)->cls_id = obj_sid(%s);", name);	
+            gs_fprintln(fp, "\tcast(this, gs_object_t)->cls_id = gs_obj_sid(%s);", name);	
             
             // Print the function box
             if (*func)
@@ -1087,7 +1087,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
             }
 
             // Return
-            gs_fprintln(fp, "\treturn (object_t*)_obj;");	
+            gs_fprintln(fp, "\treturn (gs_object_t*)_obj;");	
 
             gs_fprintln(fp, "}");	
         }
@@ -1099,7 +1099,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->dtor.func;
 
-            gs_fprintln(fp, "GS_API_DECL void obj_dtor_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_dtor_%zu(gs_object_t* obj)", id);	
             gs_fprintln(fp, "{"); 
             
             // Print the function box
@@ -1119,7 +1119,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->serialize.func;
 
-            gs_fprintln(fp, "GS_API_DECL gs_result obj_serialize_%zu(gs_byte_buffer_t* buffer, const object_t* in)", id);	
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_serialize_%zu(gs_byte_buffer_t* buffer, const gs_object_t* in)", id);	
             gs_fprintln(fp, "{"); 
             
             // Print the function box
@@ -1145,7 +1145,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->deserialize.func;
 
-            gs_fprintln(fp, "GS_API_DECL gs_result obj_deserialize_%zu(gs_byte_buffer_t* buffer, object_t* out)", id);	
+            gs_fprintln(fp, "GS_API_DECL gs_result obj_deserialize_%zu(gs_byte_buffer_t* buffer, gs_object_t* out)", id);	
             gs_fprintln(fp, "{"); 
 
             // Print the function box
@@ -1171,7 +1171,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->on_create.func;
 
-            gs_fprintln(fp, "GS_API_DECL void obj_on_create_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_create_%zu(gs_object_t* obj)", id);	
             gs_fprintln(fp, "{"); 
             
             // Print the function box
@@ -1191,7 +1191,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->on_start.func;
 
-            gs_fprintln(fp, "GS_API_DECL void obj_on_start_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_start_%zu(gs_object_t* obj)", id);	
             gs_fprintln(fp, "{"); 
 
             // Print the function box
@@ -1211,7 +1211,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->on_stop.func;
 
-            gs_fprintln(fp, "GS_API_DECL void obj_on_stop_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_stop_%zu(gs_object_t* obj)", id);	
             gs_fprintln(fp, "{"); 
             
             // Print the function box
@@ -1231,7 +1231,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->on_update.func;
 
-            gs_fprintln(fp, "GS_API_DECL void obj_on_update_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_update_%zu(gs_object_t* obj)", id);	
             gs_fprintln(fp, "{"); 
             
             // Print the function box
@@ -1251,7 +1251,7 @@ void write_reflection_file(reflection_data_t* refl, const char* dir)
         {
             const char* func = c->on_destroy.func;
 
-            gs_fprintln(fp, "GS_API_DECL void obj_on_destroy_%zu(object_t* obj)", id);	
+            gs_fprintln(fp, "GS_API_DECL void obj_on_destroy_%zu(gs_object_t* obj)", id);	
             gs_fprintln(fp, "{"); 
             
             // Print the function box

@@ -36,8 +36,8 @@
 
 =================================================================================================================*/
 
-#ifndef APP_H
-#define APP_H
+#ifndef GS_APP_H
+#define GS_APP_H
 
 /*
     [ Main Application Interface ] 
@@ -70,41 +70,41 @@
 
     [ Core ] 
 
-    - core_t is the main core structure that holds all relevant gameplay systems and content managers.
+    - gs_core_t is the main core structure that holds all relevant gameplay systems and content managers.
     - Found in core.h
     
-        typedef struct core_t
+        typedef struct gs_core_t
         {
             gs_command_buffer_t cb;         // Command buffer for rendering
             gs_immediate_draw_t gsi;        // Immediate draw utility
-            entity_manager_t    entities;   // Entity data
-            asset_manager_t     assets;     // Asset data
-            meta_t              meta;       // Reflection data
+            gs_entity_manager_t entities;   // Entity data
+            gs_asset_manager_t  assets;     // Asset data
+            gs_meta_t           meta;       // Reflection data
             gs_mu_ctx           gmu;        // GUI utility context
-        } core_t;
+        } gs_core_t;
 
     - The application creates a context for this core data and holds onto it for the length of the application.  
 
     [ Asset Manager ]
 
-    - asset_manager_t is the main collection of assets held for your application. It's a central storage and utility
+    - gs_asset_manager_t	 is the main collection of assets held for your application. It's a central storage and utility
         for importing and managing the lifetime of assets. 
 
     [ Entity Manager ]
 
-    - entity_manager_t holds all entity and component data for your application.  
+    - gs_entity_manager_t holds all entity and component data for your application.  
 
         * Components:
 
             - Components can be any structure you define, but they must be marked up for reflection.
-            - All components must derive from `component_base_t`
+            - All components must derive from `gs_component_base_t`
 
             ex. 
 
             introspect()
             typedef struct my_comp_t
             {
-                base(component_base_t)
+                base(gs_component_base_t)
 
                 field()
                 uint32_t u_val;
@@ -129,26 +129,26 @@
 
                 - Entities must be allocated at runtime using the function: 
                         
-                    uint32_t handle = entities_allocate(entity_manager_t*) 
+                    uint32_t handle = gs_entities_allocate(gs_entity_manager_t*) 
 
                 - This function returns a uint32_t handle to the user to reference the entity data during runtime
 
                 - To add a registered component to an entity, use the following macro: 
                     
                     // Add component to entity of type T, passing in optional struct parameter for copying data
-                    void entities_add_component(entity_manager_t*, uint32_t handle, T component_type, ...) 
+                    void gs_entities_add_component(gs_entity_manager_t*, uint32_t handle, T component_type, ...) 
 
                 - To remove a component from an entity, use the following macro: 
 
-                    void entities_remove_component(entity_manager_t*, uint32_t handle, T component_type)
+                    void gs_entities_remove_component(gs_entity_manager_t*, uint32_t handle, T component_type)
 
                 - To check if an entity has a component, use the following macro:
                     
-                    bool entities_has_component(entity_manager_t*, uint32_t handle, T component_type)
+                    bool gs_entities_has_component(gs_entity_manager_t*, uint32_t handle, T component_type)
                 
                 - Deallocate an entity: 
                     
-                    void entities_deallocate(entity_manager_t* entities, uint32_t hndl); 
+                    void gs_entities_deallocate(gs_entity_manager_t* entities, uint32_t hndl); 
 
     [ Introspection ] 
 
@@ -160,7 +160,7 @@
         In order to participate in reflection, your structures and enums must be marked up for the reflection
             generation to work properly.
 
-        All relfected objects derive from `object_t` (found in object.h), which is holds a unique meta class 
+        All relfected objects derive from `gs_object_t	` (found in object.h), which is holds a unique meta class 
             identitifer (uint64_t). This identifier is used as a unique type id for all utilities in this template.
 
         Structs: 
@@ -175,20 +175,20 @@
             } my_struct_t;
 
             - Each structure must derived from some base object. Due to how c aliases types, this must collapse down
-                to `object_t` in the hierarchy. This means you can have a complicated chain of hiearchy, but the 
+                to `gs_object_t	` in the hierarchy. This means you can have a complicated chain of hiearchy, but the 
                 base MUST be the first field in the structure. Use the `base()` macro for establishing this.
 
             introspect()
             typedef struct my_struct_t
             {
-                // This structure is derived from `object_t`
-                base(object_t)
+                // This structure is derived from `gs_object_t	`
+                base(gs_object_t	)
             } my_struct_t;
 
             introspect()
             typedef struct my_derived_struct_t
             {
-                // This structure derives from `my_struct_t`, which collapses into `object_t`
+                // This structure derives from `my_struct_t`, which collapses into `gs_object_t	`
                 base(my_struct_t)
             } my_derived_struct_t;
 
@@ -201,8 +201,8 @@
                 introspect()
                 typedef struct my_struct_t
                 {
-                    // This structure is derived from `object_t`
-                    base(object_t)
+                    // This structure is derived from `gs_object_t	`
+                    base(gs_object_t	)
 
                     field() 
                     float f_val;
@@ -243,7 +243,7 @@
                     - Used for serialization of your object into a runtime byte buffer.
                     - Parameters: 
                         * gs_byte_buffer_t* buffer
-                        * const object_t* obj 
+                        * const gs_object_t	* obj 
 
                     - Implicit `this` available, casted to your object type.
 
@@ -256,7 +256,7 @@
 
                     - Parameters: 
                         * gs_byte_buffer_t* buffer
-                        * object_t* obj 
+                        * gs_object_t	* obj 
 
                     - Used for deserialization of your object.
 
@@ -285,16 +285,16 @@
         destroyed, and introspected at runtime using the following methods:
 
     // Object functions
-    obj_id(OBJ)                     // Get object class id from instance
-    obj_sid(T)                      // Get object class id from static type
-    obj_vtable_w_id(ID)             // Get vtable for class
-    obj_func_w_id(ID, NAME)         // Get function in vtable based on name
+    gs_obj_id(OBJ)                     // Get object class id from instance
+    gs_obj_sid(T)                      // Get object class id from static type
+    gs_obj_vtable_w_id(ID)             // Get vtable for class
+    gs_obj_func_w_id(ID, NAME)         // Get function in vtable based on name
     obj_new(T)                      // Heap allocate object of type based on type
-    obj_newid(ID)                   // Heap allocate object based on cls id 
-    obj_ctor(T, ...)                // Construct object 
-    obj_dtor(T, OBJ)                // Destruct object 
-    obj_serialize(T, BUFFER, OBJ)   // Serialize object
-    obj_deserialize(T, BUFFER, OBJ) // Deserialize object 
+    gs_obj_newid(ID)                   // Heap allocate object based on cls id 
+    gs_obj_ctor(T, ...)                // Construct object 
+    gs_obj_dtor(T, OBJ)                // Destruct object 
+    gs_obj_serialize(T, BUFFER, OBJ)   // Serialize object
+    gs_obj_deserialize(T, BUFFER, OBJ) // Deserialize object 
 
     ================================================================================================================
 
@@ -307,7 +307,7 @@
 typedef struct app_t
 {
     // Core data
-    core_t* core; 
+    gs_core_t* core; 
 
     // Your app data here...
     uint32_t ent;
@@ -318,7 +318,7 @@ introspect()
 typedef struct component_rotation_t
 {
     // Parent 
-    base(component_base_t)
+    base(gs_component_base_t)
 
     // Functions
 
@@ -394,17 +394,17 @@ typedef struct component_rotation_t
      */
     on_update
     ({ 
-        entity_manager_t* em = entity_manager_instance(); 
+        gs_entity_manager_t* em = gs_entity_manager_instance(); 
 
         // Update rotation
         const float _t = gs_platform_elapsed_time();
         gs_quat rot = gs_quat_angle_axis(_t * 0.0001f * this->rotation_speed, this->rotation_axis);
 
         // Get entity for this component
-        uint32_t ent = component_get_entity(this);
+        uint32_t ent = gs_component_get_entity(this);
 
         // Get transform component, if found 
-        component_transform_t* tc = entities_get_component(em, ent, component_transform_t);
+        gs_component_transform_t* tc = gs_entities_get_component(em, ent, gs_component_transform_t);
 
         // Update rotation of transform 
         if (tc)
@@ -431,61 +431,61 @@ GS_API_DECL void app_shutdown();
 
 // == [ Appplication Implementation ] == // 
 
-#ifdef APP_IMPL 
+#ifdef GS_APP_IMPL 
 
-graphics_scene_t scene = {0};
+gs_graphics_scene_t scene = {0};
 
 GS_API_DECL void app_init()
 {
     // Initialize core
     app_t* app = gs_engine_user_data(app_t); 
-    app->core = core_new(); 
+    app->core = gs_core_new(); 
 
     // Load asset texture
-    asset_handle_t tex = assets_import(&app->core->assets, "textures/slave_albedo.png", NULL, true);
+    gs_asset_handle_t tex = gs_assets_import(&app->core->assets, "textures/slave_albedo.png", NULL, true);
 
     // Load asset pipeline
-    asset_handle_t pip = assets_import(&app->core->assets, "pipelines/simple.sf", NULL, true); 
+    gs_asset_handle_t pip = gs_assets_import(&app->core->assets, "pipelines/simple.sf", NULL, true); 
 
     // Load asset mesh
-    gs_gfxt_mesh_import_options_t mo = pipeline_get_mesh_import_options(asset_handle_get(&pip));
-    asset_handle_t mesh = assets_import(&app->core->assets, "meshes/slave.gltf", &mo, true);
+    gs_gfxt_mesh_import_options_t mo = gs_pipeline_get_mesh_import_options(gs_asset_handle_get	(&pip));
+    gs_asset_handle_t mesh = gs_assets_import(&app->core->assets, "meshes/slave.gltf", &mo, true);
     gs_gfxt_mesh_import_options_free(&mo); 
 
     // Add new material to asset database
-    asset_handle_t mat = assets_add_to_database(&app->core->assets, obj_newc(material_t, pip), "materials", "simple_mat", true); 
+    gs_asset_handle_t mat = gs_assets_add_to_database(&app->core->assets, gs_obj_newc(gs_material_t, pip), "materials", "simple_mat", true); 
 
     // Set texture uniform for material
-    material_set_uniform(asset_handle_get(&mat), "u_tex", &((texture_t*)asset_handle_get(&tex))->texture.hndl); 
+    gs_material_set_uniform(gs_asset_handle_get	(&mat), "u_tex", &((gs_texture_t*)gs_asset_handle_get(&tex))->texture.hndl); 
 
     // Register new component with entity manager
-    entities_register_component(&app->core->entities, component_rotation_t);
+    gs_entities_register_component(&app->core->entities, component_rotation_t);
 
     // Allocate entity and attach necessary components
-    app->ent = entities_allocate(&app->core->entities);
-    entities_add_component(&app->core->entities, app->ent, component_rotation_t, obj_ctor(component_rotation_t, 3.145f, gs_v3(0.f, 1.f, 0.f))); 
-    entities_add_component(&app->core->entities, app->ent, component_transform_t, obj_ctor(component_transform_t, gs_vqs_default())); 
-    entities_add_component(&app->core->entities, app->ent, component_static_mesh_t, obj_ctor(component_static_mesh_t, &scene));
+    app->ent = gs_entities_allocate(&app->core->entities);
+    gs_entities_add_component(&app->core->entities, app->ent, component_rotation_t, gs_obj_ctor(component_rotation_t, 3.145f, gs_v3(0.f, 1.f, 0.f))); 
+    gs_entities_add_component(&app->core->entities, app->ent, gs_component_transform_t, gs_obj_ctor(gs_component_transform_t, gs_vqs_default())); 
+    gs_entities_add_component(&app->core->entities, app->ent, gs_component_static_mesh_t, gs_obj_ctor(gs_component_static_mesh_t, &scene));
 
     // Get renderable component
-    component_static_mesh_t* sm = entities_get_component(&app->core->entities, app->ent, component_static_mesh_t);
-    renderable_static_mesh_t* rend = graphics_scene_get_renderable_static_mesh(&scene, sm->renderable_id);
+    gs_component_static_mesh_t* sm = gs_entities_get_component(&app->core->entities, app->ent, gs_component_static_mesh_t);
+    gs_renderable_static_mesh_t* rend = gs_graphics_scene_get_renderable_static_mesh(&scene, sm->renderable_id);
 
     // Assign mesh to renderable
-    renderable_static_mesh_set_mesh(rend, mesh);
+    gs_renderable_static_mesh_set_mesh(rend, mesh);
 
     // Assign material to renderable at idx 0
-    renderable_base_set_material(rend, mat, 0); 
+    gs_renderable_base_set_material(rend, mat, 0); 
 } 
 
 GS_API_DECL void app_update()
 {
     // Cache app/core pointers
     app_t* app = gs_engine_user_data(app_t);
-    core_t* core = app->core;
+    gs_core_t* core = app->core;
     gs_command_buffer_t* cb = &core->cb;
     gs_immediate_draw_t* gsi = &core->gsi; 
-    entity_manager_t* em = &core->entities; 
+    gs_entity_manager_t* em = &core->entities; 
     gs_mu_ctx* gmu = &core->gmu;
 
     // Get necessary platform metrics
@@ -496,7 +496,7 @@ GS_API_DECL void app_update()
     if (gs_platform_key_pressed(GS_KEYCODE_ESC)) gs_engine_quit(); 
 
     // Update entity manager
-    entities_update(em); 
+    gs_entities_update(em); 
 
     // Get view projection
     gs_camera_t cam = gs_camera_perspective();
@@ -522,25 +522,25 @@ GS_API_DECL void app_update()
         )
         {
             // Get renderable pointer from scene
-            const renderable_static_mesh_t* rend = gs_slot_array_iter_getp(scene.static_meshes, it); 
-            material_t* mat = asset_handle_get(&cast(rend, renderable_base_t)->materials[0]);
-            mesh_t* mesh = asset_handle_get(&rend->mesh);
+            const gs_renderable_static_mesh_t* rend = gs_slot_array_iter_getp(scene.static_meshes, it); 
+            gs_material_t* mat = gs_asset_handle_get(&cast(rend, gs_renderable_base_t)->materials[0]);
+            gs_mesh_t* mesh = gs_asset_handle_get(&rend->mesh);
 
             // Get model matrix for renderable
-            const gs_mat4 model = cast(rend, renderable_base_t)->model_matrix;
+            const gs_mat4 model = cast(rend, gs_renderable_base_t)->model_matrix;
 
             // Final MVP matrix
             const gs_mat4 mvp = gs_mat4_mul(vp, model);
 
             // Set material uniforms
-            material_set_uniform(mat, "u_mvp",  &mvp);
+            gs_material_set_uniform(mat, "u_mvp",  &mvp);
 
             // Bind material pipeline and uniforms
-            material_bind(cb, mat);                                                   // Bind material pipeline
-            material_bind_uniforms(cb, mat);                                          // Bind material uniforms
+            gs_material_bind(cb, mat);                                                   // Bind material pipeline
+            gs_material_bind_uniforms(cb, mat);                                          // Bind material uniforms
 
             // Draw mesh
-            mesh_draw(cb, mesh);                                                      // Draw mesh 
+            gs_mesh_draw(cb, mesh);                                                      // Draw mesh 
         }
 
     // End main pass
@@ -553,7 +553,7 @@ GS_API_DECL void app_update()
 GS_API_DECL void app_shutdown()
 {
     app_t* app = gs_engine_user_data(app_t); 
-    core_delete(app->core); 
+    gs_core_delete(app->core); 
 } 
         
 GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv)
@@ -569,5 +569,5 @@ GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv)
     };
 } 
 
-#endif  // APP_IMPL
-#endif  // APP_H
+#endif  // GS_APP_IMPL
+#endif  // GS_APP_H

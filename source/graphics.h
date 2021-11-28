@@ -36,91 +36,91 @@
 
 =================================================================================================================*/ 
 
-#ifndef GRAPHICS_H
-#define GRAPHICS_H
+#ifndef GS_GRAPHICS_H
+#define GS_GRAPHICS_H
 
-typedef struct quad_vert_t
+typedef struct gs_quad_vert_t
 { 
     gs_vec2 position;          
     gs_vec2 uv;
     gs_color_t color;
-} quad_vert_t; 
+} gs_quad_vert_t; 
 
-typedef struct quad_t
+typedef struct gs_quad_t
 { 
     gs_vec2 position;
     gs_vec2 dimensions;
     gs_vec4 uvs;
     gs_color_t color;
     float depth;
-} quad_t;
+} gs_quad_t;
 
-int32_t quad_compare(const void* a, const void* b)
+int32_t gs_quad_compare(const void* a, const void* b)
 {
-    quad_t* q0 = (quad_t*)a;
-    quad_t* q1 = (quad_t*)b;
+    gs_quad_t* q0 = (gs_quad_t*)a;
+    gs_quad_t* q1 = (gs_quad_t*)b;
     if (q0->depth < q1->depth) return -1;
     if (q0->depth > q1->depth) return 1;
     return 0;
 }
 
-typedef struct quad_batch_t
+typedef struct gs_quad_batch_t
 { 
-    gs_dyn_array(quad_t) quads;// Array of quads
+    gs_dyn_array(gs_quad_t) quads;// Array of quads
     gs_vbo vbo;                // Vertex buffer handle
     gs_ibo ibo;                // Index buffer handle
     uint32_t material_hndl;    // Reference to a material asset
     uint32_t count;            // Total index buffer count for upload 
-} quad_batch_t; 
+} gs_quad_batch_t; 
 
-GS_API_DECL void quad_batch_init(quad_batch_t* qb, uint32_t mat_hndl); 
-GS_API_DECL void quad_batch_begin(quad_batch_t* qb);
-GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb);
-GS_API_DECL void quad_batch_add(quad_batch_t* qb, const gs_vec2* position, const gs_vec2* dimensions, const gs_vec4* uvs, const gs_color_t* color, float depth);
-GS_API_PRIVATE void quad_batch_sort(quad_batch_t* qb);
+GS_API_DECL void gs_quad_batch_init(gs_quad_batch_t* qb, uint32_t mat_hndl); 
+GS_API_DECL void gs_quad_batch_begin(gs_quad_batch_t* qb);
+GS_API_DECL void gs_quad_batch_end(gs_quad_batch_t* qb, gs_command_buffer_t* cb);
+GS_API_DECL void gs_quad_batch_add(gs_quad_batch_t* qb, const gs_vec2* position, const gs_vec2* dimensions, const gs_vec4* uvs, const gs_color_t* color, float depth);
+GS_API_PRIVATE void gs_quad_batch_sort(gs_quad_batch_t* qb);
 
-typedef struct renderable_base_t
+typedef struct gs_renderable_base_t
 { 
     uint32_t hndl;                          // Slot array renderable id handle
     gs_mat4 model_matrix;                   // Model matrix
-    gs_dyn_array(asset_handle_t) materials; // Per primitive materials
-} renderable_base_t;
+    gs_dyn_array(gs_asset_handle_t	) materials; // Per primitive materials
+} gs_renderable_base_t;
 
-GS_API_DECL renderable_base_set_material(renderable_base_t* rend, asset_handle_t mat, uint32_t idx); 
+GS_API_DECL gs_renderable_base_set_material(gs_renderable_base_t* rend, gs_asset_handle_t mat, uint32_t idx); 
 
-typedef struct renderable_static_mesh_t
+typedef struct gs_renderable_static_mesh_t
 {
-    base(renderable_base_t)
+    base(gs_renderable_base_t)
 
-    asset_handle_t mesh;                    // Asset handle for static mesh
+    gs_asset_handle_t mesh;                    // Asset handle for static mesh
 
-} renderable_static_mesh_t;
+} gs_renderable_static_mesh_t;
 
-GS_API_DECL renderable_static_mesh_set_mesh(renderable_static_mesh_t* rend, asset_handle_t mesh); 
+GS_API_DECL gs_renderable_static_mesh_set_mesh(gs_renderable_static_mesh_t* rend, gs_asset_handle_t mesh); 
 
-typedef struct renderable_skeletal_mesh_t
+typedef struct gs_renderable_skeletal_mesh_t
 {
-    base(renderable_base_t)
+    base(gs_renderable_base_t)
 
-    asset_handle_t mesh;                    // Asset handle for skeletal mesh
+    gs_asset_handle_t mesh;                    // Asset handle for skeletal mesh
 
-} renderable_skeletal_mesh_t; 
+} gs_renderable_skeletal_mesh_t; 
 
-GS_API_DECL void renderable_set_material_uniform(renderable_base_t* rend, const char* name, void* data);
+GS_API_DECL void renderable_set_material_uniform(gs_renderable_base_t* rend, const char* name, void* data);
 
 // Need a way to add renderables to a scene
-typedef struct graphics_scene_t 
+typedef struct gs_graphics_scene_t 
 { 
-	gs_slot_array(renderable_static_mesh_t) static_meshes;
+	gs_slot_array(gs_renderable_static_mesh_t) static_meshes;
 
-} graphics_scene_t;
+} gs_graphics_scene_t;
 
-GS_API_DECL uint32_t graphics_scene_add_renderable_static_mesh(graphics_scene_t* scene, renderable_static_mesh_t renderable); 
-GS_API_DECL renderable_static_mesh_t* graphics_scene_get_renderable_static_mesh(graphics_scene_t* scene, uint32_t hndl);
+GS_API_DECL uint32_t gs_graphics_scene_add_renderable_static_mesh(gs_graphics_scene_t* scene, gs_renderable_static_mesh_t renderable); 
+GS_API_DECL gs_renderable_static_mesh_t* gs_graphics_scene_get_renderable_static_mesh(gs_graphics_scene_t* scene, uint32_t hndl);
 
-#ifdef GRAPHICS_IMPL
+#ifdef GS_GRAPHICS_IMPL
 
-GS_API_DECL void quad_batch_init(quad_batch_t* qb, uint32_t mat_hndl) 
+GS_API_DECL void gs_quad_batch_init(gs_quad_batch_t* qb, uint32_t mat_hndl) 
 {
     // Construct vbo
     gs_graphics_vertex_buffer_desc_t vdesc = gs_default_val();
@@ -134,7 +134,7 @@ GS_API_DECL void quad_batch_init(quad_batch_t* qb, uint32_t mat_hndl)
     qb->material_hndl = mat_hndl;
 }
 
-GS_API_DECL void quad_batch_begin(quad_batch_t* qb)
+GS_API_DECL void gs_quad_batch_begin(gs_quad_batch_t* qb)
 {
     // Could add these asserts to some debug define 
     gs_assert(qb->material_hndl != 0);
@@ -143,16 +143,16 @@ GS_API_DECL void quad_batch_begin(quad_batch_t* qb)
     gs_dyn_array_clear(qb->quads);
 }
 
-GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb)
+GS_API_DECL void gs_quad_batch_end(gs_quad_batch_t* qb, gs_command_buffer_t* cb)
 { 
-    gs_dyn_array(quad_vert_t) verts = {0};
+    gs_dyn_array(gs_quad_vert_t) verts = {0};
     gs_dyn_array(uint32_t) indices = {0};
 
     // Push back all verts, store indices to verts for quads 
     // NOTE(john): This is ~4ms
     for (uint32_t i = 0; i < gs_dyn_array_size(qb->quads); ++i)
     {
-        const quad_t* q = &qb->quads[i]; 
+        const gs_quad_t* q = &qb->quads[i]; 
 
         float l = q->position.x;
         float b = q->position.y;
@@ -178,10 +178,10 @@ GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb)
         uint32_t vs = gs_dyn_array_size(verts);
 
         // Construct verts
-        quad_vert_t qlb = {0}; qlb.position = lb; qlb.uv = u0v0; qlb.color = q->color;
-        quad_vert_t qlt = {0}; qlt.position = lt; qlt.uv = u0v1; qlt.color = q->color;
-        quad_vert_t qrb = {0}; qrb.position = rb; qrb.uv = u1v0; qrb.color = q->color;
-        quad_vert_t qrt = {0}; qrt.position = rt; qrt.uv = u1v1; qrt.color = q->color; 
+        gs_quad_vert_t qlb = {0}; qlb.position = lb; qlb.uv = u0v0; qlb.color = q->color;
+        gs_quad_vert_t qlt = {0}; qlt.position = lt; qlt.uv = u0v1; qlt.color = q->color;
+        gs_quad_vert_t qrb = {0}; qrb.position = rb; qrb.uv = u1v0; qrb.color = q->color;
+        gs_quad_vert_t qrt = {0}; qrt.position = rt; qrt.uv = u1v1; qrt.color = q->color; 
 
         // Push back verts
         gs_dyn_array_push(verts, qlb);    // 0
@@ -203,7 +203,7 @@ GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb)
     // Buffer descriptors
     gs_graphics_vertex_buffer_desc_t vdesc = {0};
     vdesc.data = verts;
-    vdesc.size = gs_dyn_array_size(verts) * sizeof(quad_vert_t);
+    vdesc.size = gs_dyn_array_size(verts) * sizeof(gs_quad_vert_t);
 
     gs_graphics_vertex_buffer_desc_t idesc = {0};
     idesc.data = indices;
@@ -221,10 +221,10 @@ GS_API_DECL void quad_batch_end(quad_batch_t* qb, gs_command_buffer_t* cb)
     gs_dyn_array_free(indices);
 } 
 
-GS_API_DECL void quad_batch_add(quad_batch_t* qb, const gs_vec2* position, const gs_vec2* dimensions, const gs_vec4* uvs, const gs_color_t* color, float depth)
+GS_API_DECL void gs_quad_batch_add(gs_quad_batch_t* qb, const gs_vec2* position, const gs_vec2* dimensions, const gs_vec4* uvs, const gs_color_t* color, float depth)
 { 
     // Make a quad out of this
-    quad_t q = {0};
+    gs_quad_t q = {0};
     q.position = *position;
     q.dimensions = *dimensions;
     q.uvs = *uvs;
@@ -233,15 +233,15 @@ GS_API_DECL void quad_batch_add(quad_batch_t* qb, const gs_vec2* position, const
     gs_dyn_array_push(qb->quads, q); 
 } 
 
-GS_API_PRIVATE void quad_batch_sort(quad_batch_t* qb)
+GS_API_PRIVATE void gs_quad_batch_sort(gs_quad_batch_t* qb)
 {
     // Sort all of our vertex data by y
-    qsort(qb->quads, gs_dyn_array_size(qb->quads), sizeof(quad_t), quad_compare); 
+    qsort(qb->quads, gs_dyn_array_size(qb->quads), sizeof(gs_quad_t), gs_quad_compare); 
 }
 
 // ==================== [ Renderable Base ] =============== //
 
-GS_API_DECL renderable_base_set_material(renderable_base_t* rend, asset_handle_t mat, uint32_t idx)
+GS_API_DECL gs_renderable_base_set_material(gs_renderable_base_t* rend, gs_asset_handle_t mat, uint32_t idx)
 {
     // Check for availability (this should be based on setting the mesh)
     if (idx >= gs_dyn_array_size(rend->materials))
@@ -255,14 +255,14 @@ GS_API_DECL renderable_base_set_material(renderable_base_t* rend, asset_handle_t
 
 // ==================== [ Renderable Static Mesh ] =============== //
 
-GS_API_DECL renderable_static_mesh_set_mesh(renderable_static_mesh_t* rend, asset_handle_t mesh)
+GS_API_DECL gs_renderable_static_mesh_set_mesh(gs_renderable_static_mesh_t* rend, gs_asset_handle_t mesh)
 {
     // Get mesh primitive count
-    mesh_t* mp = asset_handle_get(&mesh);
+    gs_mesh_t* mp = gs_asset_handle_get	(&mesh);
     uint32_t cnt = gs_dyn_array_size(mp->mesh.primitives); 
 
     // Reserve material space if necessary
-    renderable_base_t* base = cast(rend, renderable_base_t);
+    gs_renderable_base_t* base = cast(rend, gs_renderable_base_t);
     if (gs_dyn_array_size(base->materials) < cnt) {
         gs_dyn_array_reserve(base->materials, cnt);
     }
@@ -273,14 +273,14 @@ GS_API_DECL renderable_static_mesh_set_mesh(renderable_static_mesh_t* rend, asse
 
 // ==================== [ Graphics Scene ] =============== //
 
-GS_API_DECL uint32_t graphics_scene_add_renderable_static_mesh(graphics_scene_t* scene, renderable_static_mesh_t rend)
+GS_API_DECL uint32_t gs_graphics_scene_add_renderable_static_mesh(gs_graphics_scene_t* scene, gs_renderable_static_mesh_t rend)
 {
     const uint32_t hndl = gs_slot_array_insert(scene->static_meshes, rend);
     gs_slot_array_getp(scene->static_meshes, hndl)->_base.hndl = hndl;
     return hndl;
 } 
 
-GS_API_DECL renderable_static_mesh_t* graphics_scene_get_renderable_static_mesh(graphics_scene_t* scene, uint32_t hndl)
+GS_API_DECL gs_renderable_static_mesh_t* gs_graphics_scene_get_renderable_static_mesh(gs_graphics_scene_t* scene, uint32_t hndl)
 {
     return gs_slot_array_getp(scene->static_meshes, hndl);
 }
@@ -292,5 +292,5 @@ GS_API_DECL renderable_static_mesh_t* graphics_scene_get_renderable_static_mesh(
 
 
 
-#endif // GRAPHICS_IMPL
-#endif // GRAPHICS_H
+#endif // GS_GRAPHICS_IMPL
+#endif // GS_GRAPHICS_H

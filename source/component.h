@@ -36,39 +36,39 @@
 
 =================================================================================================================*/ 
 
-#ifndef COMPONENT_H
-#define COMPONENT_H
+#ifndef GS_COMPONENT_H
+#define GS_COMPONENT_H
 
 introspect()
-typedef struct component_base_t
+typedef struct gs_component_base_t
 {
-    base(object_t) 
+    base(gs_object_t) 
 
     field()
     uint32_t entity;
-} component_base_t;
+} gs_component_base_t;
 
-#define comp_on_create(T, COMP)\
+#define gs_comp_on_create(T, COMP)\
     T##_on_create((COMP))
 
-#define comp_on_start(T, COMP)\
+#define gs_comp_on_start(T, COMP)\
     T##_on_start((COMP))
 
-#define comp_on_stop(T, COMP)\
+#define gs_comp_on_stop(T, COMP)\
     T##_on_stop((COMP))
 
-#define comp_on_update(T, COMP)\
+#define gs_comp_on_update(T, COMP)\
     T##_on_update((COMP))
 
-#define comp_on_destroy(T, COMP)\
+#define gs_comp_on_destroy(T, COMP)\
     T##_on_destroy((COMP))
 
-GS_API_DECL uint32_t component_get_entity(component_base_t* base);
+GS_API_DECL uint32_t gs_component_get_entity(gs_component_base_t* base);
 
 introspect()
-typedef struct component_transform_t
+typedef struct gs_component_transform_t
 { 
-    base(component_base_t)
+    base(gs_component_base_t)
 
     ctor(
         params(gs_vqs xform),
@@ -80,12 +80,12 @@ typedef struct component_transform_t
     field()
     gs_vqs transform; 
 
-} component_transform_t;
+} gs_component_transform_t;
 
 introspect()
-typedef struct component_physics_t 
+typedef struct gs_component_physics_t 
 {
-	base(component_base_t)
+	base(gs_component_base_t)
 
     field() 
 	gs_vec3 velocity;
@@ -93,28 +93,18 @@ typedef struct component_physics_t
     field()
 	gs_vec3 acceleration;
 	
-} component_physics_t;
+} gs_component_physics_t;
 
 introspect()
-typedef struct component_renderable_t 
-{ 
-    base(component_base_t)
-
-    field()
-    uint32_t renderable_id;
-
-} component_renderable_t; 
-
-introspect()
-typedef struct component_static_mesh_t
+typedef struct gs_component_static_mesh_t
 {
-    base(component_base_t)
+    base(gs_component_base_t)
 
     ctor(
-        params(graphics_scene_t* scene),
+        params(gs_graphics_scene_t* scene),
         func({
-            renderable_static_mesh_t rend = {0};
-            this->renderable_id = graphics_scene_add_renderable_static_mesh(scene, rend);
+            gs_renderable_static_mesh_t rend = {0};
+            this->renderable_id = gs_graphics_scene_add_renderable_static_mesh(scene, rend);
             this->scene = scene;
         })
     )
@@ -122,25 +112,25 @@ typedef struct component_static_mesh_t
     // Update renderable transform
     on_update
     ({ 
-        component_static_mesh_update(this);
+        gs_component_static_mesh_update(this);
     })
 
     field()
     uint32_t renderable_id;
 
     field()
-    graphics_scene_t* scene;
+    gs_graphics_scene_t* scene;
 
-} component_static_mesh_t;
+} gs_component_static_mesh_t;
 
-GS_API_DECL void component_static_mesh_update(component_static_mesh_t* comp);
+GS_API_DECL void gs_component_static_mesh_update(gs_component_static_mesh_t* comp);
 
-#ifdef COMPONENT_IMPL 
+#ifdef GS_COMPONENT_IMPL 
 
-GS_API_DECL uint32_t component_get_entity(component_base_t* base)
+GS_API_DECL uint32_t gs_component_get_entity(gs_component_base_t* base)
 {
     return base->entity;
 }
 
 #endif // COMPONENTIMPL
-#endif // COMPONENT_H
+#endif // GS_COMPONENT_H
