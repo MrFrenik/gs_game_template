@@ -1093,12 +1093,25 @@ const char* gs_uniform_string_from_type(gs_graphics_uniform_type type)
 
 void gs_parse_uniforms(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd, gs_graphics_shader_stage_type stage)
 {
+    uint32_t image_binding = 0;
+
     gs_parse_block(
     PIPELINE::UNIFORMS,
     {
         gs_gfxt_uniform_desc_t uniform = {0};
         uniform.type = gs_uniform_type_from_token(&token, stage); 
         uniform.stage = stage;
+
+        switch (uniform.type)
+        {
+            default: break;
+
+            case GS_GRAPHICS_UNIFORM_SAMPLER2D:
+            case GS_GRAPHICS_UNIFORM_IMAGE2D_RGBA32F:
+            {
+                uniform.binding = image_binding++;
+            } break;
+        } 
 
         if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) 
         { 

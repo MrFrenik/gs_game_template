@@ -477,8 +477,8 @@ GS_API_DECL void app_init()
     cmp_mat = gs_assets_add_to_database(&app->core->assets, gs_obj_newc(gs_material_t, cpip), "materials", "cmp_mat", false); 
 
     // Set texture uniforms for material
-    // gs_material_set_uniform(gs_asset_handle_get(&mat), "u_tex", &((gs_texture_t*)gs_asset_handle_get(&tex))->texture.hndl); 
-    gs_material_set_uniform(gs_asset_handle_get(&mat), "u_tex", &cmptex); 
+    gs_material_set_uniform(gs_asset_handle_get(&mat), "u_tex", &((gs_texture_t*)gs_asset_handle_get(&tex))->texture.hndl); 
+    gs_material_set_uniform(gs_asset_handle_get(&mat), "u_cmptex", &cmptex); 
     gs_material_set_uniform(gs_asset_handle_get(&cmp_mat), "u_tex", &cmptex); 
 
     // Register new component with entity manager
