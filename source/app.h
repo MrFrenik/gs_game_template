@@ -289,7 +289,7 @@
     gs_obj_sid(T)                      // Get object class id from static type
     gs_obj_vtable_w_id(ID)             // Get vtable for class
     gs_obj_func_w_id(ID, NAME)         // Get function in vtable based on name
-    obj_new(T)                      // Heap allocate object of type based on type
+    gs_obj_new(T)                      // Heap allocate object of type based on type
     gs_obj_newid(ID)                   // Heap allocate object based on cls id 
     gs_obj_ctor(T, ...)                // Construct object 
     gs_obj_dtor(T, OBJ)                // Destruct object 
@@ -304,14 +304,14 @@
 #define WINDOW_HEIGHT 1080
 
 // App struct declaration 
-typedef struct app_t
+typedef struct gs_app_t
 {
     // Core data
     gs_core_t* core; 
 
     // Your app data here...
     uint32_t ent;
-} app_t; 
+} gs_app_t; 
 
 // Introspected struct
 introspect()
@@ -433,19 +433,39 @@ GS_API_DECL void app_shutdown();
 
 #ifdef GS_APP_IMPL 
 
+#define CMP_TEX_WIDTH  2048
+#define CMP_TEX_HEIGHT 2048
+
+gs_handle(gs_graphics_texture_t) cmptex = {0};
+gs_asset_handle_t cmp_mat = {0};
 gs_graphics_scene_t scene = {0};
 
 GS_API_DECL void app_init()
 {
     // Initialize core
-    app_t* app = gs_engine_user_data(app_t); 
+    gs_app_t* app = gs_engine_user_data(gs_app_t); 
     app->core = gs_core_new(); 
 
     // Load asset texture
     gs_asset_handle_t tex = gs_assets_import(&app->core->assets, "textures/slave_albedo.png", NULL, true);
 
+    // Texture for compute shader output
+    cmptex = gs_graphics_texture_create (
+        &(gs_graphics_texture_desc_t) {
+            .width = CMP_TEX_WIDTH,
+            .height = CMP_TEX_HEIGHT, 
+            .wrap_s = GS_GRAPHICS_TEXTURE_WRAP_REPEAT,
+            .wrap_t = GS_GRAPHICS_TEXTURE_WRAP_REPEAT,
+            .min_filter = GS_GRAPHICS_TEXTURE_FILTER_NEAREST,
+            .mag_filter = GS_GRAPHICS_TEXTURE_FILTER_NEAREST,
+            .format = GS_GRAPHICS_TEXTURE_FORMAT_RGBA32F,
+            .data = NULL
+        }
+    );
+
     // Load asset pipeline
     gs_asset_handle_t pip = gs_assets_import(&app->core->assets, "pipelines/simple.sf", NULL, true); 
+    gs_asset_handle_t cpip = gs_assets_import(&app->core->assets, "pipelines/compute.sf", NULL, false); 
 
     // Load asset mesh
     gs_gfxt_mesh_import_options_t mo = gs_pipeline_get_mesh_import_options(gs_asset_handle_get	(&pip));
@@ -454,9 +474,12 @@ GS_API_DECL void app_init()
 
     // Add new material to asset database
     gs_asset_handle_t mat = gs_assets_add_to_database(&app->core->assets, gs_obj_newc(gs_material_t, pip), "materials", "simple_mat", true); 
+    cmp_mat = gs_assets_add_to_database(&app->core->assets, gs_obj_newc(gs_material_t, cpip), "materials", "cmp_mat", false); 
 
-    // Set texture uniform for material
-    gs_material_set_uniform(gs_asset_handle_get	(&mat), "u_tex", &((gs_texture_t*)gs_asset_handle_get(&tex))->texture.hndl); 
+    // Set texture uniforms for material
+    // gs_material_set_uniform(gs_asset_handle_get(&mat), "u_tex", &((gs_texture_t*)gs_asset_handle_get(&tex))->texture.hndl); 
+    gs_material_set_uniform(gs_asset_handle_get(&mat), "u_tex", &cmptex); 
+    gs_material_set_uniform(gs_asset_handle_get(&cmp_mat), "u_tex", &cmptex); 
 
     // Register new component with entity manager
     gs_entities_register_component(&app->core->entities, component_rotation_t);
@@ -481,7 +504,7 @@ GS_API_DECL void app_init()
 GS_API_DECL void app_update()
 {
     // Cache app/core pointers
-    app_t* app = gs_engine_user_data(app_t);
+    gs_app_t* app = gs_engine_user_data(gs_app_t);
     gs_core_t* core = app->core;
     gs_command_buffer_t* cb = &core->cb;
     gs_immediate_draw_t* gsi = &core->gsi; 
@@ -497,6 +520,25 @@ GS_API_DECL void app_update()
 
     // Update entity manager
     gs_entities_update(em); 
+
+    // Compute pass
+    {
+        // Get pointer to material
+        gs_material_t* mat = gs_asset_handle_get(&cmp_mat);
+
+        // Set material uniform for compute shader
+        float roll = gs_platform_elapsed_time() * 0.001f;
+        gs_material_set_uniform(mat, "u_roll", &roll); 
+
+        // Bind material
+        gs_material_bind(cb, mat);
+
+        // Bind material uniforms
+        gs_material_bind_uniforms(cb, mat); 
+
+        // Dispatch compute shader
+        gs_graphics_dispatch_compute(cb, CMP_TEX_WIDTH / 16, CMP_TEX_HEIGHT / 16, 1);
+    } 
 
     // Get view projection
     gs_camera_t cam = gs_camera_perspective();
@@ -533,7 +575,7 @@ GS_API_DECL void app_update()
             const gs_mat4 mvp = gs_mat4_mul(vp, model);
 
             // Set material uniforms
-            gs_material_set_uniform(mat, "u_mvp",  &mvp);
+            gs_material_set_uniform(mat, "u_mvp", &mvp);
 
             // Bind material pipeline and uniforms
             gs_material_bind(cb, mat);                                                   // Bind material pipeline
@@ -552,7 +594,7 @@ GS_API_DECL void app_update()
 
 GS_API_DECL void app_shutdown()
 {
-    app_t* app = gs_engine_user_data(app_t); 
+    gs_app_t* app = gs_engine_user_data(gs_app_t); 
     gs_core_delete(app->core); 
 } 
         
@@ -565,9 +607,44 @@ GS_API_DECL gs_app_desc_t app_main(int32_t argc, char** argv)
         .init = app_init,
         .update = app_update,
         .shutdown = app_shutdown,
-        .user_data = gs_malloc_init(app_t)
+        .user_data = gs_malloc_init(gs_app_t)
     };
 } 
 
 #endif  // GS_APP_IMPL
 #endif  // GS_APP_H
+
+
+/*
+    TODO(john): 
+
+        - Threading
+            * Job System
+        - Render passes
+            * MRT
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

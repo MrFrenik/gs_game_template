@@ -180,10 +180,11 @@ GS_API_DECL void gs_meta_register_gs(gs_meta_t* meta)
 //===== [ Object functions ] ======
 
 // Internal functions
-GS_API_PRIVATE gs_object_t	* _gs_obj_new_internal(uint64_t id)
+GS_API_PRIVATE gs_object_t* _gs_obj_new_internal(uint64_t id)
 { 
     const gs_meta_class_t* cls = gs_meta_class_get_w_id(&gs_meta_get_instance()->registry, id);
-    gs_object_t	* obj = gs_malloc(cls->size);
+    gs_object_t* obj = gs_malloc(cls->size);
+    memset(obj, 0, cls->size);
     obj->cls_id = id;
     return obj;
 } 

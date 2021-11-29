@@ -3,9 +3,7 @@
 pipeline { 
 
     raster { 
-        face_culling: NONE
-        primitive: LINES
-        winding_order: CW
+        primitive: TRIANGLES
         index_buffer_element_size: UINT32
     },
 
@@ -14,9 +12,6 @@ pipeline {
     },
 
     blend {
-        func: ADD
-        src:  ONE
-        dst:  ONE_MINUS_SRC_COLOR
     },
 
     stencil {
@@ -58,7 +53,7 @@ pipeline {
             }, 
             
             out {
-                vec4 frag_color;
+                vec4 frag_color;            
             },
 
             code {

@@ -198,7 +198,7 @@ typedef struct gs_material_t
 
 	gs_gfxt_material_t material;
 
-} gs_material_t	;
+} gs_material_t;
 
 GS_API_DECL void gs_material_set_uniform(gs_material_t* mat, const char* name, void* data); 
 
@@ -209,8 +209,8 @@ GS_API_DECL void gs_material_set_uniform(gs_material_t* mat, const char* name, v
     gs_gfxt_material_bind_uniforms((CB), &((MAT)->material)) 
 
 // VTable functions
-GS_API_DECL gs_result gs_material_serialize(gs_byte_buffer_t* buffer, gs_object_t	* in);
-GS_API_DECL gs_result gs_material_deserialize(gs_byte_buffer_t* buffer, gs_object_t	* out); 
+GS_API_DECL gs_result gs_material_serialize(gs_byte_buffer_t* buffer, gs_object_t* in);
+GS_API_DECL gs_result gs_material_deserialize(gs_byte_buffer_t* buffer, gs_object_t* out); 
 
 // Should these be assets as well?
 /*
@@ -970,17 +970,17 @@ typedef struct tmp_buffer_t
     char txt[1024]; 
 } tmp_buffer_t; 
 
-typedef struct gs_shader_out_data_t
+typedef struct gs_shader_io_data_t
 {
     char type[64];
     char name[64];
-} gs_shader_out_data_t;
+} gs_shader_io_data_t;
 
 typedef struct gs_pipeline_parse_data_t 
 { 
-    gs_dyn_array(gs_shader_out_data_t) out_list[2];
+    gs_dyn_array(gs_shader_io_data_t) io_list[3];
     gs_dyn_array(gs_gfxt_mesh_layout_t) mesh_layout;
-    char* code[2];
+    char* code[3];
 } gs_ppd_t; 
 
 #define gs_parse_warning(TXT, ...)\
@@ -1000,10 +1000,10 @@ typedef struct gs_pipeline_parse_data_t
 
 #define gs_parse_block(NAME, ...)\
     do {\
-        gs_println("gs_pipeline_load_resource_from_file	::parsing::%s", #NAME);\
+        gs_println("gs_pipeline_load_resource_from_file::parsing::%s", #NAME);\
         if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE))\
         {\
-            gs_println("error::gs_pipeline_load_resource_from_file	::error parsing raster from .sf resource");\
+            gs_println("error::gs_pipeline_load_resource_from_file::error parsing raster from .sf resource");\
             gs_assert(false);\
         }\
 \
@@ -1063,13 +1063,14 @@ gs_graphics_vertex_attribute_type gs_get_vertex_attribute_from_token(const gs_to
 
 gs_graphics_uniform_type gs_uniform_type_from_token(const gs_token_t* t)
 {
-    if (gs_token_compare_text(t, "float"))      return GS_GRAPHICS_UNIFORM_FLOAT; 
-    else if (gs_token_compare_text(t, "int"))   return GS_GRAPHICS_UNIFORM_INT;
-    else if (gs_token_compare_text(t, "vec2"))  return GS_GRAPHICS_UNIFORM_VEC2;
-    else if (gs_token_compare_text(t, "vec3"))  return GS_GRAPHICS_UNIFORM_VEC3; 
-    else if (gs_token_compare_text(t, "vec4"))  return GS_GRAPHICS_UNIFORM_VEC4; 
-    else if (gs_token_compare_text(t, "mat4"))  return GS_GRAPHICS_UNIFORM_MAT4; 
-    else if (gs_token_compare_text(t, "sampler2D"))  return GS_GRAPHICS_UNIFORM_SAMPLER2D; 
+    if (gs_token_compare_text(t, "float"))               return GS_GRAPHICS_UNIFORM_FLOAT; 
+    else if (gs_token_compare_text(t, "int"))            return GS_GRAPHICS_UNIFORM_INT;
+    else if (gs_token_compare_text(t, "vec2"))           return GS_GRAPHICS_UNIFORM_VEC2;
+    else if (gs_token_compare_text(t, "vec3"))           return GS_GRAPHICS_UNIFORM_VEC3; 
+    else if (gs_token_compare_text(t, "vec4"))           return GS_GRAPHICS_UNIFORM_VEC4; 
+    else if (gs_token_compare_text(t, "mat4"))           return GS_GRAPHICS_UNIFORM_MAT4; 
+    else if (gs_token_compare_text(t, "sampler2D"))      return GS_GRAPHICS_UNIFORM_SAMPLER2D; 
+    else if (gs_token_compare_text(t, "img2D_rgba32f"))  return GS_GRAPHICS_UNIFORM_IMAGE2D_RGBA32F; 
     return 0x00;
 }
 
@@ -1077,13 +1078,14 @@ const char* gs_uniform_string_from_type(gs_graphics_uniform_type type)
 {
     switch (type)
     {
-        case GS_GRAPHICS_UNIFORM_FLOAT:     return "float"; break; 
-        case GS_GRAPHICS_UNIFORM_INT:       return "int"; break;
-        case GS_GRAPHICS_UNIFORM_VEC2:      return "vec2"; break;
-        case GS_GRAPHICS_UNIFORM_VEC3:      return "vec3"; break; 
-        case GS_GRAPHICS_UNIFORM_VEC4:      return "vec4"; break; 
-        case GS_GRAPHICS_UNIFORM_MAT4:      return  "mat4"; break;
-        case GS_GRAPHICS_UNIFORM_SAMPLER2D: return "sampler2D"; break; 
+        case GS_GRAPHICS_UNIFORM_FLOAT:           return "float"; break; 
+        case GS_GRAPHICS_UNIFORM_INT:             return "int"; break;
+        case GS_GRAPHICS_UNIFORM_VEC2:            return "vec2"; break;
+        case GS_GRAPHICS_UNIFORM_VEC3:            return "vec3"; break; 
+        case GS_GRAPHICS_UNIFORM_VEC4:            return "vec4"; break; 
+        case GS_GRAPHICS_UNIFORM_MAT4:            return "mat4"; break;
+        case GS_GRAPHICS_UNIFORM_SAMPLER2D:       return "sampler2D"; break; 
+        case GS_GRAPHICS_UNIFORM_IMAGE2D_RGBA32F: return "image2D"; break; 
         default: return "UNKNOWN"; break;
     }
     return 0x00;
@@ -1091,86 +1093,78 @@ const char* gs_uniform_string_from_type(gs_graphics_uniform_type type)
 
 void gs_parse_uniforms(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd, gs_graphics_shader_stage_type stage)
 {
-	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
-    { 
-        gs_assert(false);
-    } 
-
-    uint32_t bc = 1; 
-    while (bc)
+    gs_parse_block(
+    PIPELINE::UNIFORMS,
     {
-        gs_token_t token = lex->next_token(lex);
-        switch (token.type)
+        gs_gfxt_uniform_desc_t uniform = {0};
+        uniform.type = gs_uniform_type_from_token(&token, stage); 
+        uniform.stage = stage;
+
+        if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) 
         { 
-            case GS_TOKEN_LBRACE: {bc++;} break; 
-            case GS_TOKEN_RBRACE: {bc--;} break;
-            
-            case GS_TOKEN_IDENTIFIER: 
-            {
-                gs_gfxt_uniform_desc_t uniform = {0};
-                uniform.type = gs_uniform_type_from_token(&token); 
-                uniform.stage = stage;
-
-                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) 
-                { 
-                    gs_assert(false);
-                } 
-                token = lex->current_token;
-
-                memcpy(uniform.name, token.text, token.len);
-
-                // Add uniform to ublock descriptor
-                gs_dyn_array_push(desc->ublock_desc.layout, uniform); 
-                
-            } break;
+            gs_assert(false);
         } 
-    } 
+        token = lex->current_token;
+
+        memcpy(uniform.name, token.text, token.len);
+
+        // Add uniform to ublock descriptor
+        gs_dyn_array_push(desc->ublock_desc.layout, uniform); 
+    });
 }
 
-void gs_parse_out(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd, gs_graphics_shader_stage_type type)
+void gs_parse_in(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd, gs_graphics_shader_stage_type type)
 {
-	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
-    { 
-        gs_assert(false);
-    } 
-
-    uint32_t bc = 1; 
-    while (bc)
+    gs_parse_block(
+    PIPELINE::IN,
     {
-        gs_token_t token = lex->next_token(lex);
-        switch (token.type)
-        { 
-            case GS_TOKEN_LBRACE: {bc++;} break; 
-            case GS_TOKEN_RBRACE: {bc--;} break;
-            
-            case GS_TOKEN_IDENTIFIER: 
-            {
-                gs_shader_out_data_t out = {0};
-                memcpy(out.type, token.text, token.len);
+    });
+}
 
+void gs_parse_io(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd, gs_graphics_shader_stage_type type)
+{
+    gs_parse_block(
+    PIPELINE::IO,
+    {
+        gs_shader_io_data_t io = {0}; 
+        memcpy(io.type, token.text, token.len);
+
+        switch (type)
+        {
+            case GS_GRAPHICS_SHADER_STAGE_VERTEX:
+            {
                 if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) 
                 { 
-                    gs_assert(false);
+                    gs_parse_error(false, "PIPELINE::IO::expected identifier name after type.");
                 } 
-
                 token = lex->current_token;
-                memcpy(out.name, token.text, token.len);
-
-                switch (type)
-                {
-                    case GS_GRAPHICS_SHADER_STAGE_VERTEX:
-                    {
-                        gs_dyn_array_push(ppd->out_list[0], out);
-                    } break;
-
-                    case GS_GRAPHICS_SHADER_STAGE_FRAGMENT:
-                    {
-                        gs_dyn_array_push(ppd->out_list[1], out);
-                    } break;
-                }
+                memcpy(io.name, token.text, token.len);
+                gs_dyn_array_push(ppd->io_list[0], io);
             } break;
-        }
-    }
+
+            case GS_GRAPHICS_SHADER_STAGE_FRAGMENT:
+            {
+                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_IDENTIFIER)) 
+                {
+                    gs_parse_error(false, "PIPELINE::IO::expected identifier name after type.");
+                }
+                token = lex->current_token;
+                memcpy(io.name, token.text, token.len);
+                gs_dyn_array_push(ppd->io_list[1], io);
+            } break;
+
+            case GS_GRAPHICS_SHADER_STAGE_COMPUTE:
+            {
+                if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_NUMBER)) 
+                {
+                    gs_parse_error(false, "PIPELINE::IO::expected number after type.");
+                }
+                token = lex->current_token;
+                memcpy(io.name, token.text, token.len);
+                gs_dyn_array_push(ppd->io_list[2], io);
+            } break;
+        } 
+    }); 
 }
 
 void gs_parse_code(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd, gs_graphics_shader_stage_type stage)
@@ -1202,6 +1196,7 @@ void gs_parse_code(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd
     {
         case GS_GRAPHICS_SHADER_STAGE_VERTEX: ppd->code[0]   = code; break; 
         case GS_GRAPHICS_SHADER_STAGE_FRAGMENT: ppd->code[1] = code; break;
+        case GS_GRAPHICS_SHADER_STAGE_COMPUTE: ppd->code[2] = code; break;
     }
 }
 
@@ -1344,49 +1339,58 @@ void gs_parse_vertex_attributes(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, 
 
 void gs_parse_shader_stage(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd, gs_graphics_shader_stage_type stage)
 {
-	if (!gs_lexer_find_next_token_type(lex, GS_TOKEN_LBRACE)) 
-    { 
-        gs_println("error::gs_pipeline_load_resource_from_file	::error parsing shader from .sf resource");
-        gs_assert(false);
-    } 
-
-    uint32_t bc = 1; 
-    while (bc)
+    gs_parse_block(
+    PIPELINE::SHADER_STAGE,
     {
-        gs_token_t token = lex->next_token(lex);
-        switch (token.type)
-        { 
-            case GS_TOKEN_LBRACE: {bc++;} break; 
-            case GS_TOKEN_RBRACE: {bc--;} break;
-
-            case GS_TOKEN_IDENTIFIER:
-            {
-                if (stage == GS_GRAPHICS_SHADER_STAGE_VERTEX && 
-                     gs_token_compare_text(&token, "attributes"))
-                {
-                    gs_println("parsing attributes...");
-                    gs_parse_vertex_attributes(lex, desc, ppd);
-                }
-
-                else if (gs_token_compare_text(&token, "uniforms"))
-                {
-                    gs_parse_uniforms(lex, desc, ppd, stage);
-                }
-
-                else if (gs_token_compare_text(&token, "out"))
-                {
-                    gs_parse_out(lex, desc, ppd, stage);
-                }
-
-                else if (gs_token_compare_text(&token, "code"))
-                {
-                    gs_parse_code(lex, desc, ppd, stage);
-                }
-
-            } break;
+        if (stage == GS_GRAPHICS_SHADER_STAGE_VERTEX && 
+             gs_token_compare_text(&token, "attributes"))
+        {
+            gs_println("parsing attributes...");
+            gs_parse_vertex_attributes(lex, desc, ppd);
         }
-    }
 
+        else if (gs_token_compare_text(&token, "uniforms"))
+        {
+            gs_parse_uniforms(lex, desc, ppd, stage);
+        }
+
+        else if (gs_token_compare_text(&token, "out"))
+        {
+            gs_parse_io(lex, desc, ppd, stage);
+        }
+
+        else if (gs_token_compare_text(&token, "in"))
+        {
+            gs_parse_io(lex, desc, ppd, stage);
+        }
+
+        else if (gs_token_compare_text(&token, "code"))
+        {
+            gs_parse_code(lex, desc, ppd, stage);
+        }
+    }); 
+}
+
+void gs_parse_compute_shader_stage(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd)
+{
+    gs_parse_block(
+    PIPELINE::COMPUTE_SHADER_STAGE,
+    { 
+        if (gs_token_compare_text(&token, "uniforms"))
+        {
+            gs_parse_uniforms(lex, desc, ppd, GS_GRAPHICS_SHADER_STAGE_COMPUTE);
+        }
+
+        else if (gs_token_compare_text(&token, "in"))
+        {
+            gs_parse_in(lex, desc, ppd, GS_GRAPHICS_SHADER_STAGE_COMPUTE);
+        } 
+
+        else if (gs_token_compare_text(&token, "code"))
+        {
+            gs_parse_code(lex, desc, ppd, GS_GRAPHICS_SHADER_STAGE_COMPUTE);
+        }
+    }); 
 }
 
 void gs_parse_shader(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* ppd)
@@ -1421,6 +1425,13 @@ void gs_parse_shader(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t* p
                 {
                     gs_println("parsing fragment shader");
                     gs_parse_shader_stage(lex, desc, ppd, GS_GRAPHICS_SHADER_STAGE_FRAGMENT);
+                } 
+
+                // Compute shader
+                else if (gs_token_compare_text(&token, "compute"))
+                {
+                    gs_println("parsing compute shader");
+                    gs_parse_shader_stage(lex, desc, ppd, GS_GRAPHICS_SHADER_STAGE_COMPUTE);
                 } 
 
             } break;
@@ -1845,6 +1856,8 @@ void gs_parse_pipeline(gs_lexer_t* lex, gs_gfxt_pipeline_desc_t* desc, gs_ppd_t*
 
 char* gs_pipeline_generate_shader_code(gs_gfxt_pipeline_desc_t* pdesc, gs_ppd_t* ppd, gs_graphics_shader_stage_type stage)
 {
+    gs_println("GENERATING CODE...");
+
     // Shaders
     #ifdef GS_PLATFORM_WEB
         #define _GS_VERSION_STR "#version 300 es\n"
@@ -1861,9 +1874,18 @@ char* gs_pipeline_generate_shader_code(gs_gfxt_pipeline_desc_t* pdesc, gs_ppd_t*
     {
         case GS_GRAPHICS_SHADER_STAGE_VERTEX:   sidx = 0; break;
         case GS_GRAPHICS_SHADER_STAGE_FRAGMENT: sidx = 1; break;
+        case GS_GRAPHICS_SHADER_STAGE_COMPUTE:  sidx = 2; break;
+    }
+
+    // Early out for now...
+    if (!ppd->code[sidx])
+    {
+        return src;
     }
 
     const char* shader_header = 
+    stage == GS_GRAPHICS_SHADER_STAGE_COMPUTE ? 
+    "#version 430\n" : 
     _GS_VERSION_STR
     "precision mediump float;\n";
 
@@ -1890,6 +1912,9 @@ char* gs_pipeline_generate_shader_code(gs_gfxt_pipeline_desc_t* pdesc, gs_ppd_t*
             } 
         }
 
+        // Compute shader image buffer binding
+        uint32_t img_binding = 0;
+
         // Uniforms
         for (uint32_t i = 0; i < gs_dyn_array_size(pdesc->ublock_desc.layout); ++i)
         { 
@@ -1897,37 +1922,108 @@ char* gs_pipeline_generate_shader_code(gs_gfxt_pipeline_desc_t* pdesc, gs_ppd_t*
 
             if (udesc->stage != stage) continue;
 
-            // Need to go from uniform type to string
-            const char* utype = gs_uniform_string_from_type(udesc->type);
-            const char* uname = udesc->name;
-            gs_snprintfc(TMP, 64, "uniform %s %s;\n", utype, uname);
-            const size_t sz = gs_string_length(TMP);
-            strncat(src, TMP, sz);
+            switch (stage)
+            {
+                case GS_GRAPHICS_SHADER_STAGE_COMPUTE:
+                {
+                    // Need to go from uniform type to string
+                    const char* utype = gs_uniform_string_from_type(udesc->type);
+                    const char* uname = udesc->name;
+
+                    switch (udesc->type)
+                    {
+                        default:
+                        {
+                            gs_snprintfc(TMP, 64, "uniform %s %s;\n", utype, uname);
+                            const size_t sz = gs_string_length(TMP);
+                            strncat(src, TMP, sz);
+                        } break;
+
+                        case GS_GRAPHICS_UNIFORM_IMAGE2D_RGBA32F:
+                        {
+                            gs_snprintfc(TMP, 64, "layout (rgba32f, binding = %zu) uniform image2D %s;\n", img_binding++, uname);
+                            const size_t sz = gs_string_length(TMP);
+                            strncat(src, TMP, sz);
+                        } break;
+                    }
+                } break;
+
+                default:
+                {
+                    // Need to go from uniform type to string
+                    const char* utype = gs_uniform_string_from_type(udesc->type);
+                    const char* uname = udesc->name;
+                    gs_snprintfc(TMP, 64, "uniform %s %s;\n", utype, uname);
+                    const size_t sz = gs_string_length(TMP);
+                    strncat(src, TMP, sz);
+                } break;
+            }
+
         }
 
         // Out
-        for (uint32_t i = 0; i < gs_dyn_array_size(ppd->out_list[sidx]); ++i)
+        switch (stage)
         {
-            gs_shader_out_data_t* out = &ppd->out_list[sidx][i];
-            const char* otype = out->type;
-            const char* oname = out->name;
-            gs_snprintfc(TMP, 64, "out %s %s;\n", otype, oname);
-            const size_t sz = gs_string_length(TMP);
-            strncat(src, TMP, sz); 
+            case GS_GRAPHICS_SHADER_STAGE_FRAGMENT:
+            case GS_GRAPHICS_SHADER_STAGE_VERTEX:
+            {
+                for (uint32_t i = 0; i < gs_dyn_array_size(ppd->io_list[sidx]); ++i)
+                {
+                    gs_shader_io_data_t* out = &ppd->io_list[sidx][i];
+                    const char* otype = out->type;
+                    const char* oname = out->name;
+                    gs_transient_buffer(TMP, 64);
+                    if (stage == GS_GRAPHICS_SHADER_STAGE_FRAGMENT)
+                    {
+                        gs_snprintf(TMP, 64, "layout(location = %zu) out %s %s;\n", i, otype, oname);
+                    }
+                    else
+                    {
+                        gs_snprintf(TMP, 64, "out %s %s;\n", otype, oname);
+                    }
+                    const size_t sz = gs_string_length(TMP);
+                    strncat(src, TMP, sz); 
+                }
+            } break; 
+
+            default: break;
         }
 
         // In
-        if (stage == GS_GRAPHICS_SHADER_STAGE_FRAGMENT)
+        switch (stage)
         {
-            for (uint32_t i = 0; i < gs_dyn_array_size(ppd->out_list[0]); ++i)
+            case GS_GRAPHICS_SHADER_STAGE_FRAGMENT:
             {
-                gs_shader_out_data_t* out = &ppd->out_list[0][i];
-                const char* otype = out->type;
-                const char* oname = out->name;
-                gs_snprintfc(TMP, 64, "in %s %s;\n", otype, oname);
-                const size_t sz = gs_string_length(TMP);
-                strncat(src, TMP, sz); 
-            }
+                for (uint32_t i = 0; i < gs_dyn_array_size(ppd->io_list[0]); ++i)
+                {
+                    gs_shader_io_data_t* out = &ppd->io_list[0][i];
+                    const char* otype = out->type;
+                    const char* oname = out->name;
+                    gs_snprintfc(TMP, 64, "in %s %s;\n", otype, oname);
+                    const size_t sz = gs_string_length(TMP);
+                    strncat(src, TMP, sz); 
+                }
+            } break;
+
+            case GS_GRAPHICS_SHADER_STAGE_COMPUTE:
+            {
+                gs_snprintfc(TMP, 64, "layout(");
+                strncat(src, "layout(", 7);
+
+                for (uint32_t i = 0; i < gs_dyn_array_size(ppd->io_list[2]); ++i)
+                {
+                    gs_shader_io_data_t* out = &ppd->io_list[2][i];
+                    const char* otype = out->type;
+                    const char* oname = out->name;
+                    gs_snprintfc(TMP, 64, "%s = %s%s", otype, oname, i == gs_dyn_array_size(ppd->io_list[2]) - 1 ? "" : ", ");
+                    const size_t sz = gs_string_length(TMP);
+                    strncat(src, TMP, sz); 
+                }
+
+                strncat(src, ") in;\n", 7);
+            } break;
+
+            default: break;
         }
 
         // Code
@@ -1973,18 +2069,41 @@ GS_API_DECL bool gs_pipeline_load_resource_from_file(const char* path, gs_asset_
     // Generate vertex shader code
     char* v_src = gs_pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_VERTEX);
 
+    // gs_println("%s", v_src);
+
     // Generate fragment shader code
     char* f_src = gs_pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_FRAGMENT); 
+    
+    // gs_println("%s", f_src);
+    
+    // Generate compute shader code (need to check for this first)
+    char* c_src = gs_pipeline_generate_shader_code(&pdesc, &ppd, GS_GRAPHICS_SHADER_STAGE_COMPUTE);
+    // gs_println("%s", c_src);
 
-    // Construct shader for pdesc 
-    pdesc.pip_desc.raster.shader = gs_graphics_shader_create(&(gs_graphics_shader_desc_t){
-        .sources = (gs_graphics_shader_source_desc_t[]){ 
-            {.type = GS_GRAPHICS_SHADER_STAGE_VERTEX, .source = v_src},
-            {.type = GS_GRAPHICS_SHADER_STAGE_FRAGMENT, .source = f_src}
-        },
-        .size = 2 * sizeof(gs_graphics_shader_source_desc_t),
-        .name = path
-    }); 
+    // Construct compute shader
+    if (c_src)
+    {
+        pdesc.pip_desc.compute.shader = gs_graphics_shader_create(&(gs_graphics_shader_desc_t){
+            .sources = (gs_graphics_shader_source_desc_t[]){ 
+                {.type = GS_GRAPHICS_SHADER_STAGE_COMPUTE, .source = c_src}
+            },
+            .size = 1 * sizeof(gs_graphics_shader_source_desc_t),
+            .name = path
+        }); 
+    }
+
+    // Construct raster shader
+    else
+    {
+        pdesc.pip_desc.raster.shader = gs_graphics_shader_create(&(gs_graphics_shader_desc_t){
+            .sources = (gs_graphics_shader_source_desc_t[]){ 
+                {.type = GS_GRAPHICS_SHADER_STAGE_VERTEX, .source = v_src},
+                {.type = GS_GRAPHICS_SHADER_STAGE_FRAGMENT, .source = f_src}
+            },
+            .size = 2 * sizeof(gs_graphics_shader_source_desc_t),
+            .name = path
+        }); 
+    }
     
 
     // Set up layout
@@ -1997,23 +2116,27 @@ GS_API_DECL bool gs_pipeline_load_resource_from_file(const char* path, gs_asset_
     pip->pipeline = gs_gfxt_pipeline_create(&pdesc);
 
     // Create mesh layout
-    for (uint32_t i = 0; i < gs_dyn_array_size(ppd.mesh_layout); ++i)
+    if (ppd.mesh_layout)
     {
-        gs_dyn_array_push(pip->mesh_layout, ppd.mesh_layout[i]);
+        for (uint32_t i = 0; i < gs_dyn_array_size(ppd.mesh_layout); ++i)
+        {
+            gs_dyn_array_push(pip->mesh_layout, ppd.mesh_layout[i]);
+        }
     }
 
     // Free all malloc'd data 
-    gs_free(v_src);
-    gs_free(f_src); 
+    if (v_src) gs_free(v_src);
+    if (f_src) gs_free(f_src); 
+    if (c_src) gs_free(c_src);
     gs_free(file_data); 
     gs_dyn_array_free(pdesc.pip_desc.layout.attrs);
     gs_dyn_array_free(pdesc.ublock_desc.layout);
     gs_dyn_array_free(ppd.mesh_layout);
     
-    for (uint32_t i = 0; i < 2; ++i)
+    for (uint32_t i = 0; i < 3; ++i)
     {
         if (ppd.code[i]) gs_free(ppd.code[i]);
-        gs_dyn_array_free(ppd.out_list[i]);
+        gs_dyn_array_free(ppd.io_list[i]);
     }
 
     return true;
